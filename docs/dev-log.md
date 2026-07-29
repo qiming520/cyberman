@@ -1,6 +1,6 @@
 # 赛博机器人（Cyberman）开发记录
 
-**文档版本**：v1.0
+**文档版本**：v1.1
 **编制日期**：2026-07-29
 **配套文档**：[项目设计报告](project-design-report.md) · [技术设计文档](tech-design.md) · [开发流程规范](dev-process.md) · [开发计划表](dev-plan.md)
 
@@ -25,6 +25,44 @@
 ---
 
 ## 2026-07-29
+
+### 关联 GitHub 远程仓库
+**类型**：🔄同步
+**相关任务**：REPO-001（详见 [Dev Plan §Sprint #0 收尾](dev-plan.md#sprint-0-收尾仓库上线)）
+**相关文档**：本文件 · [.gitignore（新增）](../.gitignore) · [dev-plan.md](dev-plan.md)
+
+**背景**：
+用户指示把本项目关联到 `https://github.com/qiming520/cyberman.git`，建立版本控制与远端备份。
+
+**已完成（不依赖网络的本地部分）**：
+- 新增项目根目录 [.gitignore](../.gitignore)，预置以下规则，避免 Sprint #1 引入 Vite/Node 后误提交：
+  - `node_modules` / `dist`（构建依赖与产物）
+  - `.env` / `.env.*`（防止 API Key 等敏感信息泄漏）
+  - `.DS_Store`（macOS 干扰文件）
+- `git init -b main` 初始化仓库，分支 `main`
+- 一次 commit `39e0cfd` 落库：`docs: 初始化项目文档基建 (Sprint #0)`（.gitignore + 5 份文档，共 6 文件 / 3993 行）
+- `git remote add origin https://github.com/qiming520/cyberman.git` 已配置
+
+**⚠️ 问题：从此环境无法 push**
+诊断：
+```
+$ git push -u origin main
+fatal: unable to access 'https://github.com/qiming520/cyberman.git/':
+SSL: no alternative certificate subject name matches target host name 'github.com'
+```
+根因：`/etc/hosts` 中 SwitchHosts/GitHub520 把 `github.com` 指向 `152.32.215.247`，但该 IP 实际返回的 TLS 证书 `CN=raw.hellogithub.com`，**不签给 github.com** —— curl 与 git 均死在 SSL 校验阶段。
+这是 hosts 过期或被中间设备改写的环境问题，**不在本次任务范围**。
+
+**影响**：
+- 本地仓库已就绪、`origin` 已加；用户修复 hosts（重新拉 GitHub520 / 删除该块 / 临时注释掉 `github.com` 行）后只需 `git push -u origin main` 一次即可
+- 若远端 `qiming520/cyberman` 已存在并有内容（如初始 README），push 会因非快进而失败；届时先 `git fetch origin` 看远端状态再决定 pull / rebase / `--force-with-lease`（**强推会覆盖远端，使用前请先确认远端无重要内容**）
+- 已在 [dev-plan.md](../dev-plan.md) 新增 REPO-001 任务，状态 🔴，阻塞原因同上
+
+**后续任务**：
+- 用户修复 hosts 后执行 push；成功后在本文档追加 `## 2026-07-29 仓库上线确认` 条目归档
+- 是否把「首次 push 失败」的处置写进 [dev-process.md](dev-process.md) 作为典型阻塞样例 —— 待用户决定
+
+---
 
 ### 强化任务收尾流程：明确每次结束必须做的事
 **类型**：📌决策
@@ -173,6 +211,7 @@ Sprint #0 目标：完成全部 5 份文档，建立后续开发的文档基础�
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v1.0 | 2026-07-29 | 初版，含项目立项、文档结构、技术选型、Sprint #0 启动 |
+| v1.1 | 2026-07-29 | 新增「关联 GitHub 远程仓库」同步记录；记录 hosts 阻塞与本地 commit 状态 |
 
 ---
 
