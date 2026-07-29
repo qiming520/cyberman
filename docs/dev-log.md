@@ -26,6 +26,88 @@
 
 ## 2026-07-29
 
+### M1-002 完成：React Router + 4 个页面骨架
+**类型**：✅进度 + 📌决策
+**相关任务**：M1-002
+**相关文档**：[dev-plan.md §Sprint #1](dev-plan.md#sprint-1m1-任务-11-14-项目脚手架) · [tech-design.md §3.2](tech-design.md#第三章-系统架构) · [PRD §2.4](project-design-report.md#24-信息架构)
+
+**背景**：
+M1-001 完成项目脚手架后，进入 M1-002：在脚手架基础上挂载 React Router，搭建 4 个页面的占位 UI（首页/角色工坊/聊天主厅/设置中心），跑通路由切换。
+
+**进展**：
+
+**1. 依赖安装**
+- `react-router-dom` v7.18.2（npm 默认 latest）
+- 与 Tech Design §3.2 规划的 v6.20.0 不同 → 决策记录见下
+
+**2. 新增 7 个文件**
+| 文件 | 作用 |
+|---|---|
+| `src/router.tsx` | createBrowserRouter 路由表，4 路由 + fallback |
+| `src/components/layout/AppLayout.tsx` | 顶部导航（4 项 NavLink + 激活态）+ Outlet + 页脚 |
+| `src/pages/HomePage.tsx` | 首页/角色库占位（导入/新建按钮 disabled） |
+| `src/pages/WorkshopPage.tsx` | 角色工坊占位（M2-001 启用） |
+| `src/pages/ChatPage.tsx` | 聊天主厅占位（路由 /chat 与 /chat/:soulId 共用） |
+| `src/pages/SettingsPage.tsx` | 设置中心占位（4 项 SettingItem 列出后续里程碑） |
+
+**修改 1 个文件**：
+| 文件 | 变更 |
+|---|---|
+| `src/App.tsx` | 从 M1-001 的 M1-001 占位 → 改写为 `RouterProvider` 挂载 router |
+
+**3. 验证结果（全部通过）**
+| 检验项 | 工具 | 结果 |
+|---|---|---|
+| TypeScript strict 编译 | `npm run typecheck` | ✅ 0 error（修了 2 个：`end` 字段 + 未使用 import） |
+| Dev server 启动 | `npm run dev` | ✅ 后台 ID `b1ubyvp4p` 启动成功 |
+| 4 路由 HTTP | `curl /`、`/workshop`、`/chat`、`/settings` | ✅ 全部 HTTP 200（SPA fallback index.html） |
+| 关键文件转译 | `curl /src/App.tsx`、`/router.tsx`、`/AppLayout.tsx` | ✅ 全部 200，size 3K-13K |
+| 首屏标题 | `curl /` | ✅ 含「赛博机器人 · Cyberman」 |
+| 后台进程清理 | TaskStop | ✅ 已停止 |
+
+**4. TS strict 暴露的两个工程教训**（💡）
+
+💡 **教训 1：NavLink 的 `end` 字段必须显式处理**
+- `as const` 数组推导的精确类型让可选字段不一致的元素不能用统一访问
+- 解决：`end={item.to === '/'}` 内联判断（或在数组中显式标注每个元素的 `end` 字段）
+- 与 React Router 版本无关，是 TS 严格模式下的常见坑
+
+💡 **教训 2：未使用的 import 立即被 strict 模式捕获**
+- `SettingsPage.tsx` 原本从 lucide-react 导入 `Settings` 图标但未使用 → TS6133
+- 这有助于保持代码清洁；不要在 strict 模式下用 `// @ts-ignore` 绕过
+
+**5. 📌 决策：react-router-dom v6 → v7**
+
+| 维度 | Tech Design §3.2 | 实际 |
+|---|---|---|
+| 版本 | `^6.20.0` | `^7.18.2`（npm 默认 latest） |
+| API 兼容性 | — | 100% 兼容（v7 主要强化类型系统 + 数据加载 API） |
+
+**决策理由**：
+- v7 已稳定（2024Q4 GA），是当前推荐版本
+- M1-002 用到的 API（createBrowserRouter / RouterProvider / NavLink / Outlet / Navigate）全部兼容
+- v6 是 LTS 模式但不再加新功能，v7 是 active development
+- 按 CLAUDE.md「简化优先」+ 不锁定过期版本，**采纳 v7**
+
+**后续影响**：
+- M1-002 之后的路由代码（参数路由、嵌套路由、loader 等）按 v7 文档写
+- v7 独有的 `loader` / `action` 数据加载 API（M2 时机成熟可考虑）
+- 待 Sprint #1 完成后，可选更新 Tech Design §3.2 把 `react-router-dom ^6.20.0` 改为 `^7.x`（避免文档与代码不一致）
+
+**6. 自检**
+| 自检项 | 结果 |
+|---|---|
+| 未记录的决策 | ✅ 无（v6→v7 偏差已记） |
+| 未记录的问题 | ✅ 无（2 个 TS error 已修复并记为教训） |
+| 需要新增后续任务 | ✅ 无（M1-003~004 已规划） |
+
+**影响**：
+- M1-002 验证完成，状态 🟡 → ✅
+- Sprint #1 进度 1/4 → 2/4（50%）
+- 用户可在浏览器中体验：顶部导航切换 4 个页面，每页有占位 UI 与「待 Mx 启用」提示
+
+---
+
 ### REPO-001 解除阻塞：6 个本地 commit 成功推送至 origin/main
 **类型**：✅进度 + 📌决策
 **相关任务**：REPO-001
