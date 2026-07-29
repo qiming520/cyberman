@@ -26,6 +26,29 @@
 
 ## 2026-07-29
 
+### 用户决策：暂停 M1-002，先修复 hosts 推送 3 个本地 commit
+**类型**：📥需求
+**相关任务**：REPO-001
+**相关文档**：[dev-plan.md §Sprint #0 收尾](dev-plan.md#sprint-0-收尾仓库上线)
+
+**背景**：
+M1-001 完整闭环后，用户选择「选项 2」：暂停 M1-002，先修复 hosts 阻塞，把当前 3 个本地 commit 推送到 GitHub 远端。
+
+**当前 git 状态**：
+- 分支 `main`，工作树干净
+- 领先 `origin/main` 3 个 commit：
+  - `13feaae` docs: 同步 Sprint #0 收尾与任务收尾流程强化
+  - `9c51d84` feat(scaffold): M1-001 Vite + React 18 + TS + Tailwind 脚手架
+  - `ab01fb0` docs(log): 记录 M1-001 git commit 节点（本地存档）
+
+**下一步**：
+1. 提供 hosts 修复指南（需用户 sudo 操作）
+2. 用户修复后，先 `git fetch origin` 看远端状态
+3. 执行 `git push -u origin main`
+4. REPO-001 收尾：Dev Log ✅ 进度 + Dev Plan REPO-001 状态 🔴 → ✅
+
+---
+
 ### M1-001 git commit 节点（本地存档）
 **类型**：✅进度（commit 节点存档）
 **相关任务**：M1-001
