@@ -26,6 +26,36 @@
 
 ## 2026-07-29
 
+### M1-001 git commit 节点（本地存档）
+**类型**：✅进度（commit 节点存档）
+**相关任务**：M1-001
+**相关文档**：本文件上一条「M1-001 完成」
+
+**背景**：
+M1-001 验证通过后，按用户选项 A 做本地 git commit 存档（REPO-001 hosts 阻塞 → 仅本地 commit，push 待 hosts 修复后执行）。
+
+**本地 commit 链（4 个，按时间顺序）**：
+
+| Hash | 信息 |
+|---|---|
+| `39e0cfd` | `docs: 初始化项目文档基建 (Sprint #0)` |
+| `4dfacf8` | `docs: 记录关联 GitHub 仓库进展（hosts 阻塞, 待 push）` |
+| `13feaae` | `docs: 同步 Sprint #0 收尾与任务收尾流程强化` |
+| **`9c51d84`** | **`feat(scaffold): M1-001 Vite + React 18 + TS + Tailwind 脚手架`** ← 本次 |
+
+**当前状态**：
+- 分支 `main`，工作树干净
+- 比 `origin/main` 超前 **2 commits**（`13feaae` + `9c51d84`）
+- `git push` 仍阻塞于 hosts（详见 REPO-001 + Dev Log「关联 GitHub 远程仓库」）
+
+**Hosts 修复后的 push 命令**（待用户执行）：
+```bash
+git push -u origin main
+```
+若远端 `qiming520/cyberman` 已有内容，先 `git fetch origin` 看远端状态再决定是否需要 `pull --rebase` / `--force-with-lease`（**强推会覆盖远端**）。
+
+---
+
 ### M1-001 完成：Vite + React 18 + TS + Tailwind 脚手架
 **类型**：✅进度
 **相关任务**：M1-001
