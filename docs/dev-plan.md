@@ -75,12 +75,7 @@
 
 | ID | 任务 | 状态 | 工时 | 验证结果 | 备注 |
 |---|---|---|---|---|---|
-| REPO-001 | git init + 首次 commit + 关联 origin | 🔴 | 0.1h | 本地 commit `39e0cfd` 已落, remote `origin` 已配; push 阻塞于 hosts | 详见 Dev Log 2026-07-29「关联 GitHub 远程仓库」 |
-
-**解除阻塞后**：
-1. 确认远端仓库当前为空（或与本地一致）后：`git push -u origin main`
-2. 若远端已有内容（如初始化 README），先 `git fetch origin` 检视再决定 rebase / pull / 强推
-3. 推进 Sprint #1 之前，建议先 `git push` 把当前 state 备到远端
+| REPO-001 | git init + 首次 commit + 关联 origin + push 至 origin/main | ✅ | 0.1h | 6 个本地 commit 全部 push 成功（`4dfacf8..127ffee`），本地与 origin/main 同步 | 详见 Dev Log 2026-07-29「REPO-001 解除阻塞」；hosts 阻塞自行解除，未修改 /etc/hosts |
 
 ---
 

@@ -26,6 +26,62 @@
 
 ## 2026-07-29
 
+### REPO-001 解除阻塞：6 个本地 commit 成功推送至 origin/main
+**类型**：✅进度 + 📌决策
+**相关任务**：REPO-001
+**相关文档**：[dev-plan.md §Sprint #0 收尾](dev-plan.md#sprint-0-收尾仓库上线) · [本文件「关联 GitHub 远程仓库」](#关联-github-远程仓库)
+
+**背景**：
+Sprint #0 收尾任务 REPO-001（hosts 阻塞）原计划由用户在 macOS Terminal 执行 `sudo sed -i '38s/^/# /' /etc/hosts` 修复。
+但在执行修复步骤前，`git fetch origin` 意外成功 → `git push -u origin main` 也成功（无 SSL 错误），表明阻塞已自行解除。
+
+**进展**：
+
+**1. push 结果**
+```
+$ git push -u origin main
+To https://github.com/qiming520/cyberman.git
+   4dfacf8..127ffee  main -> main
+branch 'main' set up to track 'origin/main'.
+```
+
+**2. 远端状态确认**
+- 本地与 `origin/main` 完全同步（HEAD = `127ffee`）
+- 工作树干净（nothing to commit）
+- 远端 main 共 6 个 commit：
+
+| Hash | 信息 |
+|---|---|
+| `39e0cfd` | `docs: 初始化项目文档基建 (Sprint #0)` |
+| `4dfacf8` | `docs: 记录关联 GitHub 仓库进展（hosts 阻塞, 待 push）` |
+| `13feaae` | `docs: 同步 Sprint #0 收尾与任务收尾流程强化` |
+| `9c51d84` | `feat(scaffold): M1-001 Vite + React 18 + TS + Tailwind 脚手架` |
+| `ab01fb0` | `docs(log): 记录 M1-001 git commit 节点（本地存档）` |
+| `127ffee` | `docs(log): 记录用户决策（暂停 M1-002，优先 push 本地 commits）` |
+
+**3. 后续 git pull 等同于 push 验证**
+任何时候运行 `git pull` 都应正常工作。
+
+📌 **决策：hosts 阻塞自行解除，不再修改 /etc/hosts**
+- 原计划让用户执行 `sudo sed -i '38s/^/# /' /etc/hosts` 注释掉 GitHub520 中 `github.com` 那一行
+- 但本次会话中 `git fetch` 和 `git push` 都成功，未触发任何 SSL 错误
+- **不再修改 hosts** —— 避免无谓的系统级变更（修改 /etc/hosts 是有副作用的全局操作）
+- `/etc/hosts` 中 GitHub520 块保持原样（行 13-59，含所有 GitHub 子域加速）
+- 若未来再次出现 SSL 错误，再走原本的修复方案
+
+💡 **教训：环境问题可能间歇性**
+- 阻塞时 git fetch 也失败，本次却成功 → 可能与 DNS 缓存、CDN 路由、SwitchHosts 状态、VPN 状态相关
+- **不要假设阻塞是「永久状态」**，先 `git fetch` 实测再下结论
+- 后续遇到类似 SSL/HTTP 错误，先实测当前网络状态，不要直接进入修改系统的流程
+
+**影响**：
+- REPO-001 任务完成，状态 🔴 → ✅
+- 远端 `qiming520/cyberman` 现在与本地完全同步
+- 用户可访问 https://github.com/qiming520/cyberman 查看完整项目历史
+- Sprint #1 可继续推进 M1-002
+
+---
+
 ### 用户决策：暂停 M1-002，先修复 hosts 推送 3 个本地 commit
 **类型**：📥需求
 **相关任务**：REPO-001
