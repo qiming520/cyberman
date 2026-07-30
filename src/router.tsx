@@ -30,12 +30,9 @@ export const router = createBrowserRouter([
     path: '/',
     element: <AppLayout />,
     children: [
-      // Sprint #3：/ 是 HomePage（MVP 入口；dev mode E2E 必须可达）
-      // 后续 M2 完整阶段：/ 改 ScenePage（统一体验），用 production build 跑 E2E
-      { index: true, element: <HomePage /> },
-      // 3D 场景：独立路由 + lazy + Suspense（dev mode 报 page error 但不阻断其他路径）
-      { path: 'scene', element: <Suspense fallback={<SceneFallback />}><ScenePage /></Suspense> },
-      // 旧页面保留（M2 完整阶段会改成浮层）
+      // Sprint #4：/ 改为 ScenePage（3D 沉浸式首页）
+      // 旧页面仍可达（通过 /workshop / /chat / /settings 跳转）
+      { index: true, element: <Suspense fallback={<SceneFallback />}><ScenePage /></Suspense> },
       { path: 'characters', element: <HomePage /> },
       { path: 'workshop', element: <WorkshopPage /> },
       { path: 'chat', element: <ChatPage /> },

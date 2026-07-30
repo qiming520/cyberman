@@ -41,8 +41,53 @@ const page = await context.newPage();
 const errors = [];
 page.on('pageerror', err => errors.push(err.message));
 
-console.log(`访问 ${BASE}/scene ...`);
-await page.goto(BASE + '/scene', { waitUntil: 'networkidle' });
+console.log(`Step 1: 注入 2 个测试灵魂到 IDB ...`);
+await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(1500);
+
+const seedResult = await page.evaluate(async () => {
+  const open = indexedDB.open('cyberman', 1);
+  await new Promise((resolve, reject) => {
+    open.onsuccess = resolve;
+    open.onerror = reject;
+  });
+  const db = open.result;
+  const tx = db.transaction(['kv'], 'readwrite');
+  const store = tx.objectStore('kv');
+  const now = Date.now();
+  const souls = [
+    {
+      id: 'test-soul-1',
+      identity: { name: '小柚', gender: 'female', age: 22, avatarSeed: 'a', pronouns: '她' },
+      personality: { mbti: 'INFP', traits: ['温柔'], speakingStyle: '', emotionalBaseline: '温暖' },
+      backstory: { story: '', hobbies: [], preferences: [] },
+      relationship: { type: 'girlfriend', initialIntimacy: 70, currentIntimacy: 70, boundaries: [] },
+      knowledge: { documents: [], manualFacts: [] },
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'test-soul-2',
+      identity: { name: '墨羽', gender: 'male', age: 24, avatarSeed: 'b', pronouns: '他' },
+      personality: { mbti: 'INTJ', traits: ['理性'], speakingStyle: '', emotionalBaseline: '冷静' },
+      backstory: { story: '', hobbies: [], preferences: [] },
+      relationship: { type: 'friend', initialIntimacy: 40, currentIntimacy: 40, boundaries: [] },
+      knowledge: { documents: [], manualFacts: [] },
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+  store.put({ state: { souls, activeSoulId: null }, version: 1 }, 'cyberman:souls');
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = resolve;
+    tx.onerror = reject;
+  });
+  return souls.length;
+});
+console.log(`  ✓ 注入 ${seedResult} 个灵魂`);
+
+console.log(`Step 2: 刷新页面看 3D 场景渲染多角色 ...`);
+await page.reload({ waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(3000);
 
 let pass = 0, fail = 0;
@@ -56,12 +101,26 @@ const canvasInfo = await page.evaluate(() => {
   return Array.from(canvases).map(c => ({ width: c.width, height: c.height }));
 });
 check('Canvas 元素已创建（>=1）', canvasInfo.length >= 1);
-// ScenePage 嵌在 AppLayout 里，受 padding/margin 影响，Canvas 尺寸 < 1440 但应 > 1000
 check('Canvas 尺寸合理（>1000px 宽，证明渲染中）', canvasInfo[0]?.width > 1000);
 check('无 page error', errors.length === 0);
 
-await page.screenshot({ path: 'e2e/screenshots/production-3d-verified.png' });
-console.log(`📸 截图：e2e/screenshots/production-3d-verified.png`);
+// 浮层：点击「角色库」按钮 → Modal 打开
+console.log(`Step 3: 验证浮层打开 ...`);
+await page.click('button:has-text("角色库")');
+await page.waitForTimeout(500);
+const overlayTextCount = await page.locator('text=角色库').count();
+check('浮层打开：Modal 显示「角色库」', overlayTextCount >= 2); // 至少 2 个：导航按钮 + Modal 标题
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+
+await page.screenshot({ path: 'e2e/screenshots/production-3d-verified.png', fullPage: false });
+console.log(`📸 截图 1：e2e/screenshots/production-3d-verified.png`);
+
+// 再截一张浮层打开的图
+await page.click('button:has-text("角色库")');
+await page.waitForTimeout(500);
+await page.screenshot({ path: 'e2e/screenshots/production-overlay-opened.png', fullPage: false });
+console.log(`📸 截图 2：e2e/screenshots/production-overlay-opened.png`);
 
 await browser.close();
 if (server) server.kill();

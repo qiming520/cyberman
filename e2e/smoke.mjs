@@ -51,9 +51,12 @@ let pass = 0, fail = 0;
 const tally = (ok) => ok ? (pass++, true) : (fail++, false);
 
 try {
-  // ────────── Step 1: 首页加载 ──────────
-  log('\n[Step 1] 首页加载');
-  await page.goto(BASE + '/');
+  // ────────── Step 1: 首页加载（走 /characters 验证 HomePage 流程）───
+  log('\n[Step 1] 首页加载（走 /characters 验证 HomePage 流程）');
+  // Sprint #4：/ 是 ScenePage（含 R3F + dev mode 有 createReconciler 已知 bug）
+  // dev mode 跑 smoke test 时跳到 /characters（旧路由）验证 HomePage
+  // production 3D 验证见 verify-production.mjs
+  await page.goto(BASE + '/characters');
   await page.waitForSelector('h1', { timeout: 5000 });
 
   tally(await check(page, '首页 h1 显示「角色库」', async () => {
@@ -159,11 +162,11 @@ try {
 
   await page.screenshot({ path: 'e2e/screenshots/05-chat-page.png', fullPage: true });
 
-  // ────────── Step 8: SPA 内导航回到首页（M1-008 修复）──────────
-  log('\n[Step 8] SPA 内导航回首页（不刷新，验证 store 状态保留）');
-  // 注意：用 SPA 内导航（点击 NavLink）而非 page.goto()，
-  // 因为 useSoulsStore 当前是 in-memory（M1-007 持久化待做），硬刷新会清空 store。
-  await page.click('nav >> text=首页');
+  // ────────── Step 8: 跳到 /characters 验证角色库（M1-008 修复）──────────
+  log('\n[Step 8] 跳到 /characters 验证角色库');
+  // Sprint #4：/ 是 ScenePage（含 3D）；用 /characters 验证 HomePage 角色库
+  // IDB 持久化已实现（M1-007），store 状态跨刷新保留
+  await page.goto(BASE + '/characters');
   await page.waitForSelector('h1', { timeout: 5000 });
 
   tally(await check(page, '首页可见「测试小柚」角色卡（M1-008 修复）', async () => {
@@ -215,8 +218,8 @@ try {
   // 等 IDB 写入完成（zustand persist 异步）
   await page.waitForTimeout(800);
 
-  // 现在硬刷新
-  await page.goto(BASE + '/');
+  // 现在硬刷新（走 /characters 验证 HomePage 流程；Sprint #4 / 是 ScenePage）
+  await page.goto(BASE + '/characters');
   await page.waitForSelector('h1', { timeout: 5000 });
   // 等待 hydration 完成（首次加载时 IDB 数据异步注入 store）
   await page.waitForTimeout(800);

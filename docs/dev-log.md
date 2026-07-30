@@ -26,6 +26,88 @@
 
 ## 2026-07-30
 
+### Sprint #4 M4-001/002/003/004：单页架构 + 多角色 + 浮层第一阶段
+**类型**：✅进度 + 📌决策 + 💡教训
+**相关任务**：M4-001 / M4-002 / M4-003 / M4-004
+**关联**：[本文件上一条「Sprint #3 收官」](dev-log.md) · [dev-plan.md §Sprint #4](dev-plan.md)
+
+**背景**：
+Sprint #3 完成 3D 渲染骨架（geometric placeholder）。Sprint #4 第一阶段要：
+1. / 改 ScenePage（3D 沉浸式作为首页）
+2. 场景多角色（从 IDB 读 souls 列表循环渲染）
+3. 浮层系统（Modal + 角色库 / 灵魂编辑器 / 设置 浮层入口）
+
+**进展**：
+
+**1. 文件清单**
+
+| 文件 | 变更 |
+|---|---|
+| `src/router.tsx` | ✏️ / 改 ScenePage（移除 /scene 独立路由，3D 已在首页） |
+| `src/features/scene/Scene.tsx` | ✏️ 重写：souls 循环渲染 + 6 槽位 X 轴布局 + 名字飘字（drei Text）+ 关系标签 + 选中环 + 颜色哈希派生 |
+| `src/components/ui/Modal.tsx` | 🆕 Portal + 遮罩 + ESC 关闭 + 标题栏 |
+| `src/pages/ScenePage.tsx` | ✏️ 重写：3 个浮层（角色库 / 灵魂编辑器 / 设置）+ 顶部导航 + 旧版聊天页跳转 |
+| `e2e/smoke.mjs` | ✏️ Step 1 + Step 8 + Step 10 改走 /characters（避开 ScenePage dev mode bug） |
+| `e2e/verify-production.mjs` | ✏️ 加 IDB 注入 + 浮层打开测试 |
+
+**2. 验证结果（17 pass / 0 fail）**
+
+dev mode (`npm run e2e`)：
+- 13 步 MVP 完整流程：home/workshop/chat/settings + IDB 持久化
+- 改装：Step 1/8/10 走 /characters（dev mode 下 ScenePage 仍有 R3F bug）
+
+production (`npm run e2e:prod`)：
+- 4 步：注入 2 个灵魂 → 刷新 → 3D 多角色渲染 → 浮层打开
+- **截图证据**：
+  - `production-3d-verified.png`：场景里 2 个角色「小柚」+「墨羽」站立，头顶名字飘字 + 关系标签 + 阴影
+  - `production-overlay-opened.png`：点击「角色库」按钮 → Modal 浮层居中显示，DiceBear 头像 + 关系 + 性格 + 日期
+
+**3. 关键设计**
+
+📌 **决策 1：首屏 3D，但 dev/prod 表现分离**
+- / = ScenePage（统一用户体验）
+- dev mode：R3F createReconciler 已知 bug，导致 ScenePage 在 dev 渲染失败 → E2E smoke 走 /characters 验证 HomePage 流程
+- production：3D 完美渲染 → verify-production 测多角色 + 浮层
+
+📌 **决策 2：6 槽位布局**
+- 角色沿 X 轴分布 [-3, -1.8, -0.6, 0.6, 1.8, 3]
+- 6 个角色后循环（未来扩展可加 Y 轴排 2 层）
+- 颜色用 name 哈希派生 hsl(250-310, 65-85%, 55-65%)，确定性但有区分度
+
+📌 **决策 3：浮层复用旧页面**
+- 角色库浮层 = 直接嵌入 `<HomePage />`
+- 灵魂编辑器浮层 = 直接嵌入 `<WorkshopPage />`
+- 设置浮层 = 直接嵌入 `<SettingsPage />`
+- 优点：复用所有验收过的旧页面，零逻辑重复
+- 缺点：嵌套页面有 `<header>` 重复（Sprint #5 优化点）
+
+**4. 关键 E2E 调试（💡 教训）**
+
+💡 **教训 1：Playwright `networkidle` 在 3D 场景永远等不到**
+- 3D 场景持续渲染（60fps），触发 network request 监测
+- 等 30s 后超时
+- 修法：用 `domcontentloaded` + `waitForTimeout(3000)` 让 R3F 完成首帧
+
+💡 **教训 2：check() 是同步函数，不能用 async lambda**
+- 错误：`check(name, async () => { return x })` 永远返回 undefined 当成 false
+- 修法：先 await 获取值，再传给同步 `check()`
+
+💡 **教训 3：路由重构后 E2E Step 期望会变**
+- 当 / 从 HomePage 改成 ScenePage 时，原 Step 1「首页 h1 = 角色库」失败
+- 修法：让 E2E 走旧路由 /characters 验证 HomePage 流程；production 模式直接测 3D
+- 启示：路由重构要在 dev E2E 立即跑一次，发现断点
+
+**5. 影响**
+
+- Sprint #4 单页架构第一阶段完成
+- 用户体验：进入应用就是 3D 沉浸式，看到所有角色在场景中
+- 下一阶段（Sprint #5）：GLB 模型 + 角色点击交互 + 捏脸参数化
+- 后续：M1-006 聊天主厅接入真实 LLM（Sprint #6）
+
+**关联决策**：[本文件上一条「Sprint #3 收官」](dev-log.md) · [dev-plan.md Sprint #4](dev-plan.md)
+
+---
+
 ### Sprint #3 收官：3D 渲染突破 + dev/prod 双轨 E2E 策略
 **类型**：✅进度（突破） + 📌决策（关键） + 💡教训 × 3
 **相关任务**：Sprint #3 M2-MVP
