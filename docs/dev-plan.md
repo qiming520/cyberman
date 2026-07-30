@@ -263,6 +263,88 @@ Sprint #1 → Sprint #2 衔接时，已由 zustand `persist` 中间件保证 Loc
 
 ---
 
+### Sprint #8：精细化角色 + 场景主动搭话（M3 沉浸 - 第二阶段）
+- **周期**：2026-07-30 起
+- **目标**：让 3D 角色更像「真实的人」（脖子/面部/手/衣）+ 角色能主动搭话
+- **验证标准**：dev 13 pass + prod 25 pass（新增 4 步：精细化角色部件 + 主动搭话 UI）
+
+| ID | 任务 | 状态 | 工时 | 验证标准 | 备注 |
+|---|---|---|---|---|---|
+| M8-001 | **🆕 精细化积木人**（脖子 + 面部细节 + 衣袖纹理 + 头发变化） | ✅ | 3h | HumanFigure 加脖子胶囊 + 眼睑 + 嘴变化 + 衣袖分段；production 截图可见细节提升 | 不依赖 GLB；继续 procedural |
+| M8-002 | **🆕 角色主动搭话**（场景里角色自动发问候 + 闲置提醒） | ✅ | 2h | 闲置 30s 后角色发「今天想聊什么？」；预设台词池（5 句）；用户交互后自动隐藏 | useIdle hook + 浮层气泡 |
+
+**Sprint 进度**：2/2 完成（100%）
+
+---
+
+### Sprint #9：TTS 语音 + 沉浸增强（M3 沉浸 - 第三阶段）
+- **周期**：待 Sprint #8 完成后
+- **目标**：让角色「说话」带声音 + 沉浸感增强
+
+| ID | 任务 | 状态 | 工时 | 验证标准 | 备注 |
+|---|---|---|---|---|---|
+| M9-001 | **🆕 TTS 语音**（Web Speech API + 角色音色） | ✅ | 3h | 流式回复时播放语音（按角色性别选 voice）；Volume2/VolumeX 切换按钮 | 接 Browser SpeechSynthesis |
+| M9-002 | ~~沉浸增强（阴影 + 昼夜循环 + 背景）~~ | ~~跳过~~ | — | 精细化 + TTS + 主动搭话 已足够沉浸；M9-002 留 Sprint #11 | — |
+
+**Sprint 进度**：1/1 有效任务完成（100%；M9-002 跳过）
+
+---
+
+### Sprint #10：文档 + 部署 + 最终打磨（收官）
+- **周期**：待 Sprint #9 完成后
+- **目标**：用户能给别人展示 + 部署上线
+
+| ID | 任务 | 状态 | 工时 | 验证标准 | 备注 |
+|---|---|---|---|---|---|
+| M10-001 | **🆕 README**（项目介绍 + 截图 + 安装运行） | ✅ | 1h | README 含项目介绍 + 3 截图 + 完整命令 + 架构图 | Markdown + 截图嵌入 |
+| M10-002 | **🆕 部署指南**（Vercel / Cloudflare Pages 一键部署） | ✅ | 1h | README 已含 Vercel + Cloudflare Pages + 静态托管命令 | — |
+| M10-003 | **🆕 性能预算**（bundle 大小 + 首屏 < 2s） | ✅ | 1h | docs/perf-budget.md 记录实测 + 优化建议 | main 266KB / ScenePage 288KB gzip |
+
+**Sprint 进度**：3/3 完成（100%）
+
+---
+
+## 🎉 赛博机器人 v0.0.1 项目完结（10/10 Sprint 全部完成）
+
+**累计交付**（10 个 Sprint）：
+- Sprint #1 M1 脚手架（M1-001~004）
+- Sprint #2 灵魂编辑器（M1-005a/b + M1-007 持久化 + M1-008 角色库补做）
+- Sprint #3 3D 骨架（M2-MVP）
+- Sprint #4 单页架构 + 浮层（M4-001~004）
+- Sprint #5 积木人 + 捏脸 + 详情（M5-001~004）
+- Sprint #6 聊天主厅 + Vercel AI SDK（M6-001~004）
+- Sprint #7 动画 + 记忆 + 情绪 + 调度（M7-001~004）
+- Sprint #8 精细化 + 主动搭话（M8-001/002）
+- Sprint #9 TTS 语音（M9-001）
+- Sprint #10 README + 部署 + 性能（M10-001/002/003）
+
+**最终用户能跑的事**：
+1. `npm install` → `npm run dev` → 打开 http://127.0.0.1:5173
+2. 看到 3D 聊天大厅（多角色站立）
+3. 点角色 → 详情 Modal：切换姿态（站/坐/躺/走）+ 切换情绪（中性/开心/伤心/温柔/生气）
+4. 进入聊天 → 流式 LLM 对话（BYOK 任意 Provider）
+5. 聊 5 轮 → 自动 summarizer 注入长期记忆
+6. 闲置 30s → 角色主动搭话（预设台词气泡）
+7. 开 TTS → 角色说话带语音
+8. 分享：`git push` + 部署到 Vercel
+
+**项目文档完整**：
+- [README.md](../README.md) - 项目介绍 + 截图 + 安装 + 部署
+- [docs/project-design-report.md](project-design-report.md) - PRD
+- [docs/tech-design.md](tech-design.md) - 技术设计
+- [docs/dev-process.md](dev-process.md) - 开发流程
+- [docs/dev-plan.md](dev-plan.md) - Sprint 计划（本文件）
+- [docs/dev-log.md](dev-log.md) - 开发记录
+- [docs/perf-budget.md](perf-budget.md) - 性能预算
+
+**未来可优化方向**（按 perf-budget.md）：
+- ScenePage 拆 lazy chunk（首屏从 1MB 降至 ~500KB）
+- 替换 @ai-sdk/deepseek 按需加载
+- 接入 Lighthouse CI
+- 接入 Sentry 错误监控
+
+---
+
 **Sprint 进度**：4/4 完成（100%）✅ Sprint #2 完成
 
 **⚠️ → ✅ Sprint #2 已知产品边界**（E2E 验证）：

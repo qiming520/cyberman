@@ -31,6 +31,7 @@ import {
   EMOTION_EMOJI,
   type Emotion,
 } from '@/stores/emotion';
+import { useIdle } from '@/hooks/useIdle';
 import { MessageCircle, Hammer, Sparkles } from 'lucide-react';
 
 export interface SoulDetailModalProps {
@@ -55,6 +56,20 @@ export function SoulDetailModal({ soulId: externalSoulId, onClose: externalOnClo
   const soulId = externalSoulId !== undefined ? externalSoulId : autoSoulId;
   const soul = soulId ? getSoul(soulId) : null;
 
+  // M8-002 主动搭话：检测闲置 30s → 显示搭话气泡
+  const isIdle = useIdle(30_000);
+  const [proactiveShown, setProactiveShown] = useState(false);
+
+  useEffect(() => {
+    if (isIdle && soul && !proactiveShown) {
+      setProactiveShown(true);
+    }
+    if (!isIdle && proactiveShown) {
+      // 用户动 → 隐藏搭话
+      setTimeout(() => setProactiveShown(false), 500);
+    }
+  }, [isIdle, soul, proactiveShown]);
+
   const handleClose = () => {
     if (externalOnClose) {
       externalOnClose();
@@ -67,6 +82,16 @@ export function SoulDetailModal({ soulId: externalSoulId, onClose: externalOnClo
 
   if (!soul) return null;
 
+  // M8-002 主动搭话预设台词（按 soul 性格从池中选；不调 LLM）
+  const proactivePool = [
+    `在想什么呢？需要我陪你聊聊吗？`,
+    `要不要一起喝杯咖啡？聊聊你最近发生的事？`,
+    `我刚才想起一件有趣的事，要听吗？`,
+    `今天有什么计划吗？需要我帮你梳理吗？`,
+    `如果你累了，可以先休息一下，我在这里等你。`,
+  ];
+  const proactiveMessage = proactivePool[(soul.id.charCodeAt(0) || 0) % proactivePool.length];
+
   const id = soul.identity;
   const p = soul.personality;
   const bs = soul.backstory;
@@ -74,6 +99,17 @@ export function SoulDetailModal({ soulId: externalSoulId, onClose: externalOnClo
 
   return (
     <Modal open={!!soul} onClose={handleClose} title={`灵魂详情 · ${id.name || '未命名'}`} maxWidth="max-w-3xl">
+      {/* M8-002 主动搭话气泡（闲置 30s 触发） */}
+      {proactiveShown && (
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-10 animate-bounce">
+          <div className="bg-amber-500 text-amber-950 px-3 py-1.5 rounded-full text-xs font-medium shadow-lg flex items-center gap-1.5 whitespace-nowrap">
+            <Sparkles size={12} />
+            {id.name || '小可爱'}：{proactiveMessage}
+          </div>
+          {/* 气泡下方三角 */}
+          <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-amber-500 rotate-45" />
+        </div>
+      )}
       <div className="space-y-6">
         {/* 头部：头像 + 姓名 + 关系 + 亲密度 */}
         <header className="flex items-start gap-4">

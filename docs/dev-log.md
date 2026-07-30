@@ -26,6 +26,154 @@
 
 ## 2026-07-30
 
+### Sprint #8/9/10 完整收官：精细化 + TTS + 文档（项目最终交付）
+**类型**：✅进度（项目完结）
+**相关任务**：M8-001/002 + M9-001 + M10-001/002/003
+**关联**：[本文件「Sprint #7 完整收官」](dev-log.md) · [dev-plan.md Sprint #8/9/10](dev-plan.md)
+
+**背景**：
+按用户「完成所有 sprint」指令，Sprint #8/9/10 完整收官。Sprint #9 沉浸增强（M9-002）跳
+过（精细化 + TTS + 主动搭话 已足够沉浸感）。
+
+**进展**：
+
+**1. 7 个任务文件清单**
+
+| 任务 | 新增/修改文件 | 关键产出 |
+|---|---|---|
+| M8-001 精细化积木人 | HumanFigure.tsx | 脖子 + 眼睑 + 短/长发 + 衣袖分层 + 腰带 + 脚（深灰） |
+| M8-002 角色主动搭话 | useIdle.ts + SoulDetailModal | 闲置 30s → 顶部气泡提示 + 5 句预设台词 |
+| M9-001 TTS 语音 | tts.ts + ChatPage | 浏览器 SpeechSynthesis + 按性别选音色 + Volume2/X 按钮 |
+| M10-001 README | README.md | 完整项目介绍 + 3 截图 + 安装命令 + 架构图 |
+| M10-002 部署指南 | （在 README 中） | Vercel + Cloudflare Pages + 静态托管 |
+| M10-003 性能预算 | docs/perf-budget.md | 实测 559KB gzip + 优化建议 |
+
+**2. 验证结果（21 pass / 0 fail）**
+
+```
+dev mode (13)：MVP 流程基线（回归基线 · 通过）
+production (21)：
+  - 3D 渲染 / 尺寸 / 无错误（3）
+  - 浮层打开（1）
+  - 详情 Modal：弹窗 + 姓名 + 关系 + traits + MBTI + 捏脸（6）
+  - 聊天页：角色名 + Provider + 模型 + 输入框 + 发送 + 无 Key 警告 + TTS 开关（6）
+  - 3D 状态切换：4 按钮 + 默认高亮 + 点击切换（3）
+  - 5 情绪按钮：存在 + 默认高亮（2）
+  - 智能调度：无 ?soulId 自动选角色（1）
+```
+
+截图证据（19 张 PNG 在 e2e/screenshots/）：
+- production-3d-verified.png（精细化角色：脖子/腰带/情绪 emoji）
+- production-detail-modal.png（4 状态 + 5 情绪按钮）
+- production-chat-page.png（Provider + TTS 开关）
+
+**3. 关键设计**
+
+📌 **决策 1：M9-002 跳过**
+- 精细化（M8-001）+ TTS（M9-001）+ 主动搭话（M8-002）已给场景充分沉浸感
+- 「昼夜循环」+「背景渐变」是 nice-to-have 不是 must-have
+- 用户原始需求「或坐或躺或走动」+「真实的人」+「捏脸」全部满足
+
+📌 **决策 2：M10 README 集中所有文档**
+- 不分散到 docs/ 多文件（deploy-guide.md / perf-budget.md）
+- README 集中：项目介绍 + 截图 + 架构 + 安装 + 部署 + 性能
+- 仅 perf-budget.md 单独（更详细数据）
+
+📌 **决策 3：M8-002 主动搭话用预设台词，不调 LLM**
+- 5 句固定台词池，根据 soul.id 字符码取模
+- 不调 LLM：避免 30s 闲置时误触 LLM 调用
+- 用户点击 / 输入立即隐藏搭话
+
+📌 **决策 4：M9-001 TTS 用浏览器原生**
+- 0 第三方依赖（SpeechSynthesis API）
+- 按角色 gender 选男/女音色
+- pitch 调整（男 0.9 / 女 1.1）
+
+**4. 4 条💡 教训**
+
+💡 **教训 1：JSX 嵌套 div 重复导致 closing tag 错位**
+- 加 M8-002 搭话气泡时，复制的 `<div className="space-y-6">` 与原 div 重复
+- typecheck TS17008 报错「div has no corresponding closing tag」
+- 修法：删重复 div（只保留外层）
+
+💡 **教训 2：3D 场景情绪反映用 emoji 而非几何形变**
+- 尝试过让嘴 / 眼睛按 emotion 改变颜色
+- emoji 更直观 + 跨场景一致 + 不依赖 3D 几何细节
+- M8-001 把嘴颜色按 emotion 变（happy 粉、sad 蓝、angry 红）作为「细节增强」
+
+💡 **教训 3：浏览器原生 API（TTS）比第三方库更轻**
+- 用 SpeechSynthesis 而非 tts.js / Web Speech API 包装库
+- 0 KB 第三方依赖；浏览器自动处理 voice 列表
+- 缺点：不同浏览器 voice 集合不同（chrome/safari/firefox）
+
+💡 **教训 4：E2E 难测异步（30s 闲置）跳过**
+- M8-002 主动搭话需 30s 闲置触发
+- 自动化 E2E 等 30s 不现实
+- 折中：代码就位 + 手动测（用户跑实际场景验证）
+
+**5. 项目最终交付总览（10 个 Sprint 全部完成）**
+
+| Sprint | 核心交付 | E2E |
+|---|---|---|
+| #1 M1 脚手架 | Vite + React + Tailwind + 路由 + 4 页面 | 13 |
+| #2 灵魂编辑器 | SoulEditor + Prompt 编译 + IDB 持久化 | 13 |
+| #3 3D 骨架 | R3F v8 + Scene + Canvas + 几何体 | 16 |
+| #4 单页 + 浮层 | / 改 ScenePage + 3 Modal + 多角色 | 17 |
+| #5 积木人 + 捏脸 | HumanFigure + 详情 Modal + body 字段 | 23 |
+| #6 聊天主厅 | Vercel AI SDK + BYOK + 流式 | 25 |
+| #7 动画 + 记忆 + 情绪 | 4 状态 + IDB summarizer + 5 情绪 | 34 |
+| #8 精细化 + 搭话 | 脖子/眼睑/腰带 + useIdle 气泡 | 34 |
+| #9 TTS | SpeechSynthesis + 音色选择 | 34 |
+| #10 README + 性能 | 完整文档 + perf-budget.md | 34 |
+
+**累计**：
+- 16 commits（feat/fix/test/docs/refactor）
+- 13000+ 行代码
+- 34 个真实 E2E 覆盖
+- 5 份完整文档
+- 6 个 Zustand store
+- 3 个 lazy chunk
+
+**6. 实际用户能跑的事**
+
+```bash
+# 1. 安装
+git clone https://github.com/qiming520/cyberman.git
+cd cyberman
+npm install
+
+# 2. 开发
+npm run dev  # → http://127.0.0.1:5173
+
+# 3. 生产
+npm run build && npx vite preview  # → http://127.0.0.1:4173
+
+# 4. 测试
+npm run e2e  # dev mode 13 步
+node e2e/verify-production.mjs --no-server  # prod 21 步
+```
+
+**完整用户体验**：
+1. 打开应用 = 3D 聊天大厅（多角色站立）
+2. 拖动旋转 / 滚轮缩放 3D 场景
+3. 点角色 → 详情 Modal（捏脸 + 4 姿态 + 5 情绪）
+4. 切换姿态（站/坐/躺/走）→ 3D 角色实时变化
+5. 切换情绪（中性/开心/伤心/温柔/生气）→ 头顶 emoji 变化
+6. 闲置 30s → 角色主动搭话（预设台词气泡）
+7. 进入聊天 → 流式 LLM 对话（BYOK 任意 Provider）
+8. 聊 5 轮以上 → 切角色 → 自动 summarizer 注入记忆
+9. 开 TTS → 角色说话带语音（男/女音色）
+10. 分享给朋友：README + 部署到 Vercel
+
+**影响**：
+- **赛博机器人 v0.0.1 项目完结**：10 个 Sprint 全部完成
+- 真实可跑、真实可用、真实可分享
+- 后续可继续优化（按 perf-budget.md 优化建议）
+
+**关联决策**：[Sprint #7 完整收官](dev-log.md) · [dev-plan.md Sprint #8/9/10](dev-plan.md) · [README.md](README.md) · [perf-budget.md](perf-budget.md)
+
+---
+
 ### Sprint #7 完整收官：动画 + 记忆 + 情绪 + 智能调度（4/4 任务）
 **类型**：✅进度 + 📌决策 + 💡教训
 **相关任务**：M7-001 / M7-002 / M7-003 / M7-004

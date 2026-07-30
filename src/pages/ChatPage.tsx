@@ -23,7 +23,8 @@ import { useSettingsStore } from '@/stores/settings';
 import { DiceBearAvatar } from '@/features/soul/editor/DiceBearAvatar';
 import { getAgentOrchestrator } from '@/features/agent/orchestrator';
 import { maybeSummarize, getMemoryContext } from '@/features/memory/summarizer';
-import { Send, Square, Settings as SettingsIcon, AlertCircle } from 'lucide-react';
+import { tts } from '@/features/sensory/tts';
+import { Send, Square, Settings as SettingsIcon, AlertCircle, Volume2, VolumeX } from 'lucide-react';
 
 export function ChatPage() {
   const [searchParams] = useSearchParams();
@@ -57,6 +58,7 @@ export function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [memoryCount, setMemoryCount] = useState(0);
+  const [ttsEnabled, setTtsEnabled] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // soulId 变化时：summarize 上次会话 + 启动新会话 + 加载 memory
@@ -140,6 +142,12 @@ export function ChatPage() {
             setError(event.data.message);
           } else if (event.type === 'done') {
             finalizeMessage();
+            // M9-001 TTS：流式结束朗读完整回复
+            if (ttsEnabled) {
+              const finalText = useChatStore.getState().currentConversation?.messages
+                .find(m => m.id === assistantMsg.id)?.content;
+              if (finalText) tts.speak(soul, finalText);
+            }
           }
         },
       );
@@ -180,6 +188,18 @@ export function ChatPage() {
           onChangeProvider={setCurrentProvider}
           onChangeModel={setCurrentModel}
         />
+        {/* M9-001 TTS 开关 */}
+        <button
+          type="button"
+          onClick={() => {
+            if (ttsEnabled) tts.stop();
+            setTtsEnabled(!ttsEnabled);
+          }}
+          className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded transition-colors"
+          title={ttsEnabled ? '关闭语音朗读' : '开启语音朗读'}
+        >
+          {ttsEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+        </button>
       </header>
 
       {/* 消息区 */}
