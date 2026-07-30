@@ -24,6 +24,114 @@
 
 ---
 
+## 2026-07-30
+
+### M1-003 完成：Zustand store 初始化（settings / souls / chat）
+**类型**：✅进度 + 📌决策
+**相关任务**：M1-003
+**相关文档**：[dev-plan.md §Sprint #1](dev-plan.md#sprint-1m1-任务-11-14-项目脚手架) · [tech-design.md §3.1/§4/§5.3](tech-design.md#第三章-系统架构) · [PRD §4.1.1](project-design-report.md#41-灵魂定制系统)
+
+**背景**：
+M1-003 范围：在脚手架 + 路由基础上，挂载 Zustand 状态层。3 个核心 store：settings（API Key + UI 设置）、souls（角色列表）、chat（当前会话）。M1-004 直接复用 settings store 实现 API Key 管理 UI。
+
+**进展**：
+
+**1. 依赖**
+- `zustand@5.x`（npm latest；与 Tech Design §3.2 的 `^4.5.0` 不同 → 决策见下）
+
+**2. 新增 3 个文件**
+
+| 文件 | 行数 | 内容 |
+|---|---|---|
+| `src/stores/settings.ts` | 113 | apiKeys + uiSettings；立即接 `persist` + LocalStorage `cyberman:settings` v1 |
+| `src/stores/souls.ts` | 147 | 完整 SoulConfig 类型（Gender/MBTI/RelationshipType 等）+ CRUD actions；**不持久化** |
+| `src/stores/chat.ts` | 137 | ChatMessage + ChatConversation + 流式追加（appendChunk）+ finalizeMessage；**不持久化** |
+
+**3. 验证结果（全部通过）**
+
+| 检验项 | 工具 | 结果 |
+|---|---|---|
+| TypeScript strict 编译 | `npm run typecheck` | ✅ 0 error |
+| Dev server 启动 | `npm run dev` | ✅ 后台 ID `byopjtl48` 启动成功 |
+| settings.ts 转译 | `curl /src/stores/settings.ts` | ✅ HTTP 200, 7139B（含 persist 中间件） |
+| souls.ts 转译 | `curl /src/stores/souls.ts` | ✅ HTTP 200, 6742B |
+| chat.ts 转译 | `curl /src/stores/chat.ts` | ✅ HTTP 200, 7939B（含流式逻辑） |
+| 后台进程清理 | TaskStop | ✅ 已停止 |
+
+**4. 关键设计决策**
+
+📌 **决策 1：settings 立即持久化，souls/chat 暂不持久化**
+
+| store | 持久化策略 | 理由 |
+|---|---|---|
+| settings | **立即**接 `persist` + LocalStorage | M1-004 直接复用，省一次重构 |
+| souls | **暂不**持久化 | M2 接 IndexedDB（数据量大、需事务、需查询）；当前仅 in-memory CRUD |
+| chat | **暂不**持久化 | 同 souls；M2 接 IndexedDB |
+
+**理由**：避免在 M1-003 同时实现「LocalStorage 序列化大对象 + IndexedDB schema + 迁移策略」三件事。每件事独立推进，单元更清晰。
+
+📌 **决策 2：zustand v4 → v5**
+
+| 维度 | Tech Design §3.2 | 实际 |
+|---|---|---|
+| 版本 | `^4.5.0` | `^5.x`（npm latest） |
+| API 兼容性 | — | 100% 兼容；v5 主要变化是 TS 类型系统的进一步收紧 |
+
+**理由**：
+- v5 已稳定（2024 GA），与 v4 API 几乎完全兼容
+- M1-003 用到的 API（`create` / `persist` / selector）全部兼容
+- 不锁定过期版本（v4 仍是 LTS 但不再加新功能）
+- 与 M1-002 的 v6→v7 决策同因：采纳 latest
+
+**影响**：后续 store 代码按 v5 文档写；可选地在 Sprint #1 完成后统一更新 Tech Design §3.2 把 `zustand ^4.5.0` 改为 `^5.x`。
+
+📌 **决策 3：souls store 直接定义完整 SoulConfig 类型**
+
+PRD §4.1.1 已经设计了完整的 SoulConfig（包括 IdentityConfig / PersonalityConfig / BackstoryConfig / RelationshipConfig / KnowledgeConfig 6 个子接口），M1-003 直接照搬：
+
+- 避免 M2-001 时再扩展类型定义（节省一次重构）
+- 类型完整意味着 M1-003 结束时 souls store 的 API 形状已经稳定
+- KnowledgeDoc 简化为最小定义（id / type / title / content），完整 schema 留 M2
+
+📌 **决策 4：`crypto.randomUUID()` 用于生成 ID**
+
+```typescript
+function newId(): string { return crypto.randomUUID(); }
+```
+- 浏览器原生 API，无需引入 uuid 库（按 CLAUDE.md「简单优先」）
+- 所有现代浏览器（Chrome 92+/Edge 92+/Safari 15.4+/Firefox 95+）支持
+- Tech Design §1.3 已规定兼容性 Chrome 120+，完全支持
+
+**5. API 设计要点**
+
+每个 store 都遵循以下模式：
+1. **State 接口**：纯数据 + actions（不分离 slice）
+2. **Actions 返回值**：
+   - 创建类（createSoul / startConversation / appendMessage）返回新对象，便于调用方拿到 ID
+   - 修改类（updateSoul / appendChunk / setTitle）返回 void
+   - 查询类（getSoul / getApiKey）通过 get() 同步访问
+3. **TypeScript strict**：
+   - 用 `(string & {})` 让 Provider 类型既能列举已知值又能接受自定义字符串
+   - 用 `isKnown` 类型谓词让 TypeScript 能在条件分支中收窄类型
+   - 用 `Partial<UiSettings>` 让 updateUiSettings 支持部分更新
+
+**6. 自检**
+
+| 自检项 | 结果 |
+|---|---|
+| 未记录的决策 | ✅ 无（4 个决策全部已记） |
+| 未记录的问题 | ✅ 无（无新问题） |
+| 需要新增后续任务 | ✅ 无（M1-004 已规划；M2-001/002 等留到 M2 阶段再细化） |
+
+**影响**：
+- M1-003 验证完成，状态 🟡 → ✅
+- Sprint #1 进度 2/4 → 3/4（75%）
+- M1-004（设置中心 UI）可直接 `import { useSettingsStore } from '@/stores/settings'` 复用
+- M2-001（角色工坊）可直接 `import { useSoulsStore }` 复用
+- M1-005（聊天主厅）可直接 `import { useChatStore }` 复用
+
+---
+
 ## 2026-07-29
 
 ### M1-002 完成：React Router + 4 个页面骨架

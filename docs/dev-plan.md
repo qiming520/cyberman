@@ -89,10 +89,10 @@
 |---|---|---|---|---|---|
 | M1-001 | Vite + React 18 + TS + Tailwind + shadcn/ui 脚手架 | ✅ | 2h | typecheck 0 error；dev server OK；首屏 HTML 含「赛博机器人」标题；Tailwind 编译 13KB | 见 PRD §6.2；详情见 Dev Log 2026-07-29 M1-001 完成 |
 | M1-002 | React Router 配置 + 4 个页面骨架 | ✅ | 2h | typecheck 0 error；4 路由 HTTP 200；router/AppLayout 编译成功 | 见 Tech Design §3.2；详情见 Dev Log 2026-07-29 M1-002 完成；决策：react-router-dom v6→v7.18.2 |
-| M1-003 | Zustand store 初始化（settings / souls / chat） | ⚪ | 2h | 三个 store 创建，类型完整 | 见 Tech Design §4 |
+| M1-003 | Zustand store 初始化（settings / souls / chat） | ✅ | 2h | typecheck 0 error；3 store Vite 编译成功；settings 接 LocalStorage persist | 见 Tech Design §3.1/§4；详情见 Dev Log 2026-07-30 M1-003 完成；决策：settings 立即持久化、souls/chat 留 M2 接 IndexedDB；zustand v4→v5 |
 | M1-004 | 设置中心：API Key 管理 UI + LocalStorage 持久化 | ⚪ | 3h | 能录入 OpenAI Key，刷新仍在 | 见 Tech Design §5.3 |
 
-**Sprint 进度**：2/4 完成（50%）
+**Sprint 进度**：3/4 完成（75%）
 
 ---
 
