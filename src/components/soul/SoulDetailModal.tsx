@@ -17,6 +17,13 @@ import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { DiceBearAvatar } from '@/features/soul/editor/DiceBearAvatar';
 import { useSoulsStore } from '@/stores/souls';
+import {
+  useCharacterStateStore,
+  ALL_STATES,
+  STATE_LABELS,
+  STATE_ICONS,
+  type CharacterState,
+} from '@/stores/characterState';
 import { MessageCircle, Hammer, Sparkles } from 'lucide-react';
 
 export interface SoulDetailModalProps {
@@ -148,6 +155,19 @@ export function SoulDetailModal({ soulId: externalSoulId, onClose: externalOnClo
           </div>
         </Section>
 
+        {/* 状态切换（M7-001） */}
+        <section>
+          <h4 className="text-xs uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5">
+            <span>🎭</span>
+            <span>3D 状态（点击切换）</span>
+          </h4>
+          <div className="grid grid-cols-4 gap-2">
+            {ALL_STATES.map((s) => (
+              <StateButton key={s} state={s} soulId={soul.id} />
+            ))}
+          </div>
+        </section>
+
         {/* 操作按钮 */}
         <footer className="flex gap-2 pt-2 border-t border-slate-800">
           <button
@@ -217,4 +237,24 @@ function relationshipLabel(type: string): string {
     custom: '自定义',
   };
   return map[type] ?? '其他';
+}
+
+function StateButton({ state, soulId }: { state: CharacterState; soulId: string }) {
+  const current = useCharacterStateStore((s) => s.getState(soulId));
+  const setState = useCharacterStateStore((s) => s.setState);
+  const isActive = current === state;
+  return (
+    <button
+      type="button"
+      onClick={() => setState(soulId, state)}
+      className={`flex flex-col items-center gap-1 py-2.5 rounded-lg text-sm transition-colors ${
+        isActive
+          ? 'bg-blue-600 text-white'
+          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+      }`}
+    >
+      <span className="text-xl">{STATE_ICONS[state]}</span>
+      <span className="text-xs">{STATE_LABELS[state]}</span>
+    </button>
+  );
 }

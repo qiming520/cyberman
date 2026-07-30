@@ -161,6 +161,32 @@ check('无 API Key 时显示警告「未配置 openai API Key」', async () => {
 await page.screenshot({ path: 'e2e/screenshots/production-chat-page.png', fullPage: false });
 console.log(`📸 截图 3：e2e/screenshots/production-chat-page.png`);
 
+console.log(`Step 6: 验证 3D 状态切换按钮（M7-001）...`);
+await page.goto(BASE + '/?detail=test-soul-1', { waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(2000);
+check('详情 Modal 显示 4 状态按钮（站/坐/躺/走）', async () => {
+  const stand = await page.locator('button:has-text("站立")').count();
+  const sit = await page.locator('button:has-text("坐下")').count();
+  const lie = await page.locator('button:has-text("躺下")').count();
+  const walk = await page.locator('button:has-text("走动")').count();
+  return stand >= 1 && sit >= 1 && lie >= 1 && walk >= 1;
+});
+check('默认状态按钮高亮「站立」', async () => {
+  const standBtn = page.locator('button:has-text("站立")').first();
+  const classes = await standBtn.getAttribute('class');
+  return classes?.includes('bg-blue-600') ?? false;
+});
+// 点击「坐下」按钮 → 状态应切换
+await page.click('button:has-text("坐下")');
+await page.waitForTimeout(500);
+check('点击「坐下」后状态切换', async () => {
+  const sitBtn = page.locator('button:has-text("坐下")').first();
+  const classes = await sitBtn.getAttribute('class');
+  return classes?.includes('bg-blue-600') ?? false;
+});
+await page.screenshot({ path: 'e2e/screenshots/production-state-sitting.png', fullPage: false });
+console.log(`📸 截图 4：e2e/screenshots/production-state-sitting.png`);
+
 await browser.close();
 if (server) server.kill();
 

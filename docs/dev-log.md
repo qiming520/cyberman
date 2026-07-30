@@ -26,6 +26,83 @@
 
 ## 2026-07-30
 
+### Sprint #7 M7-001：角色动画状态机（4 姿态 + useFrame 插值）
+**类型**：✅进度 + 📌决策 + 💡教训
+**相关任务**：M7-001（第一阶段）
+**关联**：[本文件「Sprint #6 聊天主厅」](dev-log.md) · [dev-plan.md Sprint #7](dev-plan.md)
+
+**背景**：
+Sprint #6 完成聊天主厅。Sprint #7 第一阶段：让 3D 角色「活起来」—— 4 个姿态状态（站立/坐下/躺下/走动）切换。
+
+**进展**：
+
+**1. 新增 / 修改文件**
+
+| 文件 | 变更 |
+|---|---|
+| `src/stores/characterState.ts` | 🆕 ~50 行：useCharacterStateStore（zustand）+ CharacterState 枚举 + ALL_STATES / STATE_LABELS / STATE_ICONS + setState/cycle actions |
+| `src/features/scene/HumanFigure.tsx` | ✏️ 加 `state` prop + useFrame 插值；4 状态 transform 配置；walking 叠加 sin(time) 摆动 |
+| `src/features/scene/Scene.tsx` | ✏️ HumanFigure 接 state + 头顶状态标签 |
+| `src/components/soul/SoulDetailModal.tsx` | ✏️ 加「3D 状态」4 按钮 section + StateButton 子组件 |
+| `e2e/verify-production.mjs` | ✏️ Step 6：3 步状态验证（4 按钮存在 + 默认高亮 + 点击切换） |
+
+**2. 验证结果（18 pass / 0 fail）**
+
+```
+dev mode (13 pass / 0 fail) — 回归基线
+production (18 pass / 0 fail) — 含 3 步 M7-001 验证
+  - 4 状态按钮存在（站/坐/躺/走）
+  - 默认「站立」按钮高亮
+  - 点击「坐下」后状态切换高亮
+```
+
+截图证据：`production-state-sitting.png` 显示 4 按钮 + 「坐下」高亮 + 3D 角色在背景模糊可见
+
+**3. 关键设计**
+
+📌 **决策 1：4 状态枚举 + transform 配置**
+- standing: y=0, rotX=0, rotZ=0
+- sitting: y=-0.35（整体下沉）
+- lying: y=-0.35, rotZ=π/2（沿 Z 轴旋转 90°）
+- walking: y=0 + useFrame sin(time) X/Y 摆动（持续移动）
+
+📌 **决策 2：useFrame 平滑插值（时间无关）**
+- `k = 1 - exp(-dt * 5)` —— 帧率高时插值快，帧率低时插值慢
+- 所有状态过渡都是 lerp 到固定 target，避免跳变
+- walking 例外：每帧重算位置（持续移动）
+
+📌 **决策 3：state 存 zustand 而非 SoulConfig**
+- 不污染 SoulConfig 核心结构
+- 临时性 UI 状态（动画）独立管理
+- 后续 M7-003 情绪可类似
+
+**4. 3 条💡 教训**
+
+💡 **教训 1：useFrame 时间因子公式**
+- `1 - exp(-dt * 5)` 是标准时间无关平滑系数
+- 不用 `k = dt * 5`（帧率敏感）
+- 不直接用 `0.1`（与帧率耦合）
+
+💡 **教训 2：walking 状态特殊处理**
+- 其他 3 状态都是 lerp 到固定 transform
+- walking 必须是 sin(time) 持续移动（不是 lerp 到点）
+- 切换 walking → standing 时也要 lerp Y/Z 归零，X 才不会跳
+
+💡 **教训 3：E2E 验证 3D 状态需要用「按钮高亮 class」断言**
+- 3D 内部 transform 变化无法直接断言
+- 用 React DOM 状态（按钮高亮 bg-blue-600）作为间接证据
+- 截图 + 视觉确认辅助
+
+**5. 影响**
+
+- Sprint #7 M7-001 完成（4 状态动画）
+- M7-002 长期记忆 / M7-003 情绪状态 仍是后续任务
+- 用户体验：点角色 → 看细节 → 切换姿态（看到 3D 实时变化）
+
+**关联决策**：[Sprint #6 聊天主厅](dev-log.md) · [dev-plan.md Sprint #7](dev-plan.md)
+
+---
+
 ### Sprint #6 M6-001/002/003/004：聊天主厅 + Vercel AI SDK + BYOK
 **类型**：✅进度 + 📌决策 + 💡教训
 **相关任务**：M6-001 / M6-002 / M6-003 / M6-004

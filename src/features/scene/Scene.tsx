@@ -15,6 +15,7 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Text } from '@react-three/drei';
 import { useSoulsStore } from '@/stores/souls';
+import { useCharacterStateStore } from '@/stores/characterState';
 import { HumanFigure, getHumanParams } from './HumanFigure';
 import type { SoulConfig } from '@/stores/souls';
 
@@ -93,6 +94,7 @@ interface CharacterGroupProps {
 function CharacterGroup({ soul, position, isActive, onClick }: CharacterGroupProps) {
   const name = soul.identity.name || '未命名';
   const params = getHumanParams(soul);
+  const state = useCharacterStateStore((s) => s.getState(soul.id));
 
   return (
     <group position={position} onClick={onClick}>
@@ -104,7 +106,7 @@ function CharacterGroup({ soul, position, isActive, onClick }: CharacterGroupPro
         </mesh>
       )}
 
-      {/* 积木人 */}
+      {/* 积木人（带 4 状态动画） */}
       <HumanFigure
         bodyColor={params.bodyColor}
         skinColor={params.skinColor}
@@ -112,6 +114,7 @@ function CharacterGroup({ soul, position, isActive, onClick }: CharacterGroupPro
         hairStyle={params.hairStyle}
         height={params.height}
         bodyType={params.bodyType}
+        state={state}
         onClick={onClick}
       />
 
@@ -124,12 +127,11 @@ function CharacterGroup({ soul, position, isActive, onClick }: CharacterGroupPro
         anchorY="middle"
         outlineWidth={0.02}
         outlineColor="#0f172a"
-        onUpdate={(self) => { self.renderOrder = 999; }}
       >
         {name}
       </Text>
 
-      {/* 关系标签（名字下） */}
+      {/* 关系标签 */}
       <Text
         position={[0, 1.75, 0]}
         fontSize={0.1}
@@ -141,8 +143,25 @@ function CharacterGroup({ soul, position, isActive, onClick }: CharacterGroupPro
       >
         {relationshipLabel(soul.relationship.type)}
       </Text>
+
+      {/* 状态标签（M7-001） */}
+      <Text
+        position={[0, 2.15, 0]}
+        fontSize={0.08}
+        color="#64748b"
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={0.01}
+        outlineColor="#0f172a"
+      >
+        [{stateLabel(state)}]
+      </Text>
     </group>
   );
+}
+
+function stateLabel(state: string): string {
+  return { standing: '站立', sitting: '坐下', lying: '躺下', walking: '走动' }[state] ?? state;
 }
 
 function relationshipLabel(type: string): string {
