@@ -14,7 +14,7 @@ import { useWatch, useFormState, Control } from 'react-hook-form';
 import { FileText, Code2, Copy, Check } from 'lucide-react';
 import { compileSystemPrompt } from '../compiler/promptCompiler';
 import type { SoulConfig } from '@/stores/souls';
-import type { SoulFormValues } from '../schema';
+import { defaultSoulValues, type SoulFormValues } from '../schema';
 
 export interface PromptPreviewProps {
   control: Control<SoulFormValues>;
@@ -25,13 +25,9 @@ export function PromptPreview({ control, soulId }: PromptPreviewProps) {
   const [view, setView] = useState<'raw' | 'sections'>('raw');
   const [copied, setCopied] = useState(false);
 
-  // 仅订阅编译所需的字段（性能优化）
-  const watched = useWatch({
-    control,
-    name: [
-      'identity', 'personality', 'backstory', 'relationship', 'knowledge',
-    ] as const,
-  }) as unknown as SoulFormValues | undefined;
+  // 订阅整个表单（useWatch 不带 name 时返回 DeepPartial<TFieldValues>）
+  // 这是修好的 M1-005b bug：之前用 name: [...] 返回值是数组而非对象，导致编译永远 null
+  const watched = useWatch({ control });
 
   // 表单脏状态用于显示「未通过验证」提示
   const { errors } = useFormState({ control });
@@ -39,7 +35,9 @@ export function PromptPreview({ control, soulId }: PromptPreviewProps) {
   const compiled = useMemo(() => {
     if (!watched) return null;
     try {
-      const soulLike = formToSoulPreview(watched, soulId);
+      // 用 defaultSoulValues 深合并，避免 DeepPartial 导致的字段缺失
+      const merged: SoulFormValues = mergeWithDefaults(watched);
+      const soulLike = formToSoulPreview(merged, soulId);
       return compileSystemPrompt({ soul: soulLike });
     } catch (err) {
       console.error('Prompt 编译失败:', err);
@@ -166,6 +164,60 @@ function SectionsView({ sections }: { sections: { title: string; body: string }[
       ))}
     </div>
   );
+}
+
+// ─────────────────────────── 深合并：DeepPartial → 完整默认值 ───────────────────────────
+
+/**
+ * 把 useWatch 返回的 DeepPartial<SoulFormValues> 用 defaultSoulValues 合并，
+ * 确保所有字段都有合理值（避免编译时 runtime 报错）。
+ *
+ * 接收 DeepPartial 而非 Partial，确保类型完全兼容 useWatch 的返回值。
+ */
+type DeepPartial<T> = T extends object
+  ? { [K in keyof T]?: DeepPartial<T[K]> }
+  : T;
+
+function mergeWithDefaults(
+  watched: DeepPartial<SoulFormValues> | undefined,
+): SoulFormValues {
+  if (!watched) return defaultSoulValues;
+  // DeepPartial 把数组元素也推为 T | undefined；运行时 zod 已保证数组元素非空
+  // 用 filter(Boolean) 剔除可能的 undefined，再断言为 SoulFormValues
+  const cleanArr = <T,>(arr: ReadonlyArray<T | undefined> | undefined): T[] =>
+    (arr ?? []).filter((x): x is T => x !== undefined);
+
+  return {
+    identity: {
+      ...defaultSoulValues.identity,
+      ...(watched.identity ?? {}),
+      avatarSeed: watched.identity?.avatarSeed ?? defaultSoulValues.identity.avatarSeed,
+    },
+    personality: {
+      ...defaultSoulValues.personality,
+      ...(watched.personality ?? {}),
+      traits: cleanArr(watched.personality?.traits),
+    },
+    backstory: {
+      ...defaultSoulValues.backstory,
+      ...(watched.backstory ?? {}),
+      hobbies: cleanArr(watched.backstory?.hobbies),
+      preferences: cleanArr(watched.backstory?.preferences),
+    },
+    relationship: {
+      ...defaultSoulValues.relationship,
+      ...(watched.relationship ?? {}),
+      boundaries: cleanArr(watched.relationship?.boundaries),
+    },
+    knowledge: {
+      ...defaultSoulValues.knowledge,
+      ...(watched.knowledge ?? {}),
+      documents: watched.knowledge?.documents
+        ? (watched.knowledge.documents as SoulFormValues['knowledge']['documents'])
+        : defaultSoulValues.knowledge.documents,
+      manualFacts: cleanArr(watched.knowledge?.manualFacts),
+    },
+  };
 }
 
 // ─────────────────────────── 表单 → SoulConfig 轻量转换 ───────────────────────────

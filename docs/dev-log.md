@@ -26,6 +26,118 @@
 
 ## 2026-07-30
 
+### 浏览器体验反馈的两个问题：修 bug + 补遗漏
+**类型**：⚠️问题 × 2 + 📌决策 + 💡教训 × 3
+**相关任务**：M1-005b 收尾（bug fix）+ M1-008 角色库列表（M1-002 遗漏补做）
+**相关文档**：[dev-plan.md](dev-plan.md) · [PRD §2.2 F-005](project-design-report.md#22-核心功能清单) · [dev-process.md §3.1](dev-process.md#31-何时写-dev-log)
+
+**背景**：
+用户在浏览器实测后反馈两个问题：
+1. **右侧 System Prompt 预览一直显示「编译中...」**——无论怎么编辑表单都不更新
+2. **点击创建灵魂后，首页角色库看不到创建的角色**
+
+**⚠️ 问题 1：PromptPreview useWatch 数组/对象类型 bug**
+
+**根因**：
+```typescript
+// ❌ M1-005b 写的（bug）
+const watched = useWatch({
+  control,
+  name: ['identity', 'personality', 'backstory', 'relationship', 'knowledge'],
+}) as unknown as SoulFormValues | undefined;
+```
+
+按 react-hook-form v7 文档：`useWatch({ name: [...] })` **返回值是数组**（每个路径对应一个值），不是合并后的对象。
+
+我的代码做了 `as unknown as` 强制类型断言，让 TS 误以为 `watched` 是 SoulFormValues 对象。运行时实际是数组（`[identity, personality, backstory, relationship, knowledge]`）。
+
+`watched` 永远不为 undefined（数组）→ 进入编译 → `formToSoulPreview(watched, ...)` 实际收到数组 → 后端访问 `arr.identity` 等字段都返回 undefined → formToSoulPreview 内部读 `form.identity.name` 等 undefined 值 → 这些被传入 promptCompiler → 在某个字段上抛错（如 `genderText(undefined)` 找不到 case）→ try/catch 返回 null → UI 显示「编译中...」**永远转圈**。
+
+**修复**：
+```typescript
+// ✅ 改为订阅整个表单
+const watched = useWatch({ control });  // 返回 DeepPartial<SoulFormValues>
+
+// ✅ 用 defaultSoulValues 深合并确保所有字段齐全
+function mergeWithDefaults(watched: DeepPartial<SoulFormValues> | undefined): SoulFormValues {
+  // ... 各 section 浅合并 + 数组字段 filter(Boolean)
+}
+```
+
+新加 `mergeWithDefaults()` 函数：遍历每个 section 用 default 兜底，数组字段用 `cleanArr()` helper 过滤可能为 undefined 的元素（DeepPartial 类型推导导致）。
+
+**💡 教训 1：useWatch 数组路径与对象路径的返回值不同**
+- `useWatch({ name: 'field' })` → 该字段的值
+- `useWatch({ name: ['a', 'b'] })` → **数组** `[a的值, b的值]`，不是合并对象！
+- `useWatch({ control })` 不带 name → **整个表单的 DeepPartial**
+
+📌 决策：放弃「精确订阅字段」优化，改为订阅整个表单
+- 理由 1：5 sections 的小表单，整体订阅性能可接受
+- 理由 2：代码清晰，少一层类型转换 bug 风险
+- 理由 3：未来如需优化，可替换为 `useWatchSubscription` 等专门 API
+
+---
+
+**⚠️ 问题 2：M1-002 漏做角色库列表（PRD §2.2 F-005 P0 功能未交付）**
+
+**根因**：
+Sprint #1 时 M1-002 仅做「React Router 配置 + 4 个页面骨架」，HomePage 是占位（`Users` 图标 + 「还没有角色」空状态）。M1-003 后续接入了 useSoulsStore，但**从未真正从 store 读 souls[] 渲染列表**。
+
+M1-005a 完成灵魂编辑器后，「创建灵魂」调用 `createSoul` 写入 store，并跳转 `/chat?soulId=xxx`（M1-006 的预设路径），但 M1-006 还没做。M1-005b 也没补 HomePage。最终用户行为：
+- 在 WorkshopPage 创建灵魂 → 写入 store ✓
+- 自动跳转 `/chat?soulId=xxx` → ChatPage 是占位，看不到 soul
+- 用户返回首页 → 首页没列任何角色 → 误以为「没保存」
+
+**这是个**「文档承诺但代码未交付」的**熵增点**。**
+
+**修复**（M1-008 角色库列表 — 本次新增）：
+完整改写 `src/pages/HomePage.tsx`：
+- 从 `useSoulsStore((s) => s.souls)` 订阅灵魂列表
+- 卡片网格：DiceBear 头像 + 名字 + 关系标签 + 亲密度 + 性格关键词预览 + 进入聊天按钮 + 删除按钮
+- 空状态：保留「还没有角色」+ 引导链接
+- 关系类型本地化（girlfriend → 女友等）
+- 进入聊天时 `setActiveSoul(soulId)`（M2 多角色切换）
+- 删除二次确认（confirm）
+
+**为什么不在原 Sprint #1 一并交付**：
+- M1-002 当时按「骨架优先」原则只做页面占位
+- M1-003 只做 store 骨架
+- M1-005a/b 专注灵魂编辑器，没回头看 HomePage
+- **教训：每个新功能上线前，要 grep 一下其它受影响页面**
+
+---
+
+**💡 教训 2：交付 P0 功能要有 check list**
+
+PRD §2.2 F-005「角色库管理」是 P0，但被分散到「M1-002 骨架」「M1-003 store」「M1-005a 编辑器」三个任务中，没有任何任务专门负责**列表呈现**。结果：UI 层永远没人做。
+
+**改进**：
+- 在 Dev Plan 的 Sprint 任务描述中加**「关键交付物检查」**
+- 每个 Sprint 末尾跑一次「PRD §2.2 功能清单 vs 实际交付」核对
+- 缺失项立即补，不留到下一 Sprint
+
+**💡 教训 3：用户测试是发现的唯一路径**
+
+curl + typecheck + 单元测试都通过，但**「一直显示编译中」**这种交互 bug 只能通过浏览器实测发现。
+
+按 CLAUDE.md「实践论」：**Sprint 收尾必须有「用户在浏览器实际跑一遍」环节**。`npm run dev` 起得来 ≠ 功能正确。
+
+---
+
+**📌 决策汇总**：
+- 修 bug：PromptPreview useWatch 改为订阅整个表单（牺牲性能换清晰度）
+- 补功能：M1-008 角色库列表（最小可用版：列表 + 进入聊天 + 删除）
+- 加流程：Sprint 收尾增加「用户浏览器实测」环节
+- 加检查：每个 Sprint 末尾对照 PRD §2.2 跑功能清单核对
+
+**影响**：
+- M1-005b 的 bug 已修
+- M1-002 的 F-005 P0 缺失已补（M1-008）
+- Dev Plan 后续把「M1-008 角色库列表」补入 Sprint #2 已完成任务
+- Sprint #2 进度更新为 2/4 完成（M1-008 视为已完成）+ M1-006/007 待开始
+
+---
+
 ### M1-005b 完成：Prompt 编译 + 右栏实时预览
 **类型**：✅进度 + 📌决策 + 💡教训
 **相关任务**：M1-005b
