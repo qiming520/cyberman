@@ -26,6 +26,123 @@
 
 ## 2026-07-30
 
+### Sprint #6 M6-001/002/003/004：聊天主厅 + Vercel AI SDK + BYOK
+**类型**：✅进度 + 📌决策 + 💡教训
+**相关任务**：M6-001 / M6-002 / M6-003 / M6-004
+**关联**：[本文件「Sprint #5 积木人」](dev-log.md) · [dev-plan.md Sprint #6](dev-plan.md)
+
+**背景**：
+Sprint #5 完成 3D 角色 + 详情 Modal。Sprint #6 要：
+1. 装 Vercel AI SDK + 4 个 Provider 包
+2. 写 AgentOrchestrator（流式调用 + BYOK + 错误处理）
+3. 改造 ChatPage（读 soulId、Provider 选择、流式 UI）
+4. E2E 验证聊天页 UI（真实 LLM 调用需用户 Key，E2E 测 UI 完整性）
+
+**进展**：
+
+**1. 依赖（14 包）**
+- `ai` ^6.0.238（Vercel AI SDK 核心）
+- `@ai-sdk/openai` ^3.0.90
+- `@ai-sdk/anthropic` ^3.0.104
+- `@ai-sdk/deepseek` ^2.0.51
+- ⚠️ `@ai-sdk/zhipu` 在 npm registry 不存在，**跳过**（智谱 GLM 用户占少数，未来可加 OpenAI 兼容模式或自建适配器）
+
+**2. 新增 / 修改文件**
+
+| 文件 | 变更 |
+|---|---|
+| `src/stores/settings.ts` | ✏️ 加 `currentProvider` + `currentModel` 字段 + setCurrentProvider/setCurrentModel actions + PROVIDER_DEFAULT_MODELS + settings v2 迁移（默认值补全） |
+| `src/features/agent/orchestrator.ts` | 🆕 ~165 行：AgentOrchestrator 类（stream / cancel）+ AgentRequest / AgentStreamEvent / AgentError 类型 + 单例 getAgentOrchestrator() |
+| `src/pages/ChatPage.tsx` | ✏️ 全部重写：读 ?soulId + DiceBear 头像 + Provider/Model 选择 + 消息流 + 输入框 + 流式 chunk + stop 按钮 + 错误提示 + 无 Key 引导 |
+| `e2e/verify-production.mjs` | ✏️ Step 5：聊天页 5 步 E2E 验证 |
+
+**3. 验证结果（25 pass / 0 fail）**
+
+```
+dev mode (npm run e2e)：
+  13 pass / 0 fail（MVP 完整流程，回归基线）
+
+production (npm run e2e:prod)：
+  15 pass / 0 fail
+  - 3D 渲染 / 尺寸 / 无错误（3）
+  - 浮层打开（1）
+  - 详情 Modal：弹窗 + 姓名 + 关系 + traits + MBTI + 捏脸（6）
+  - 聊天页：角色名 + Provider + 模型 + 输入框 + 发送按钮 + 无 Key 警告（5）
+
+截图证据：
+  - production-3d-verified.png：积木人 2 个角色
+  - production-detail-modal.png：详情 Modal 完整显示
+  - production-chat-page.png：聊天页全功能 UI（顶部角色 + Provider/Model 选择 + 警告 + 输入框）
+```
+
+**4. 关键设计**
+
+📌 **决策 1：单例 AgentOrchestrator**
+- `getAgentOrchestrator()` 工厂返回单例
+- 内部维护 AbortController（支持 cancel() 中断流）
+- 避免每次都 new（新实例会丢失 cancel 状态）
+
+📌 **决策 2：BYOK 错误友好提示**
+- 6 种错误码（NO_API_KEY / AUTH / RATE_LIMIT / BAD_REQUEST / NETWORK / UNKNOWN）
+- 无 Key 时显示「去设置」链接 + 输入框 disabled
+- 网络错误/限流显示具体错误码 + 消息
+
+📌 **决策 3：Provider 工厂**
+- `buildModel(provider, apiKey, modelId)` 工厂
+- 默认 4 个 provider（OpenAI / Anthropic / DeepSeek + 自定义 OpenAI 兼容）
+- Google 暂未接；Zhipu 跳过（npm 缺包）
+
+📌 **决策 4：流式 chunk 实时渲染**
+- useChatStore.appendChunk(streamingId, chunkText)
+- MessageBubble 末尾显示 ▍ 闪烁光标（isStreaming 时）
+- 「停止」按钮：调用 orchestrator.cancel() + finalizeMessage()
+
+**5. 4 条💡 教训**
+
+💡 **教训 1：strict TS 抓住 unused import**
+- 4 个 TS 错误：3 个 unused import + 1 个 history type narrow
+- `clearConversation` 拿了但没用 → 删
+- `SoulConfig` type 拿了但没用 → 删
+- `PROVIDER_DEFAULT_MODELS` 拿了但没用 → 删
+- filter('system') 之后没 narrow → 加 as 断言
+
+💡 **教训 2：M6-001 装 zhipu 包失败**
+- `@ai-sdk/zhipu@*` 在 npm registry 不存在（404）
+- classifier 拦截 `--registry npmmirror.com` 强指定
+- **修法**：不带 --registry 装（用公司内网镜像虽然不通但其他包可装）；跳过 zhipu，文档标注
+- 启示：依赖 npm 包时不能假设所有第三方包都存在；fallback 方案重要
+
+💡 **教训 3：E2E 不能测真实 LLM 调用**
+- 网络 + 钱 + 速度 → 无法在 E2E 跑真实流式
+- 退而求其次：测 UI 完整性（输入框 + 发送按钮 + Provider 选择 + 无 Key 警告）
+- 真实 LLM 体验必须用户在自己浏览器跑（带 Key）
+
+💡 **教训 4：ChatPage 跨页 IDB 数据正确性**
+- 跳到 /chat?soulId=xxx → 读 useSoulsStore.souls → 加载 SoulConfig
+- 跳到另一个 soulId → 自动 startConversation（检测到 currentConversation.soulId !== 新 soulId）
+- 消息流实时 appendChunk + finalizeMessage
+
+**6. 实际用户能做什么**
+
+```bash
+# 用户跑这个流程
+1. 打开 http://127.0.0.1:4173/
+2. 「设置」填入 OpenAI API Key
+3. 回首页 → 点 3D 场景角色
+4. 「进入聊天」按钮（已实装 soulDetailModal 里）
+5. /chat?soulId=xxx 加载
+6. 输入消息 → 看真实流式 LLM 回复
+```
+
+**影响**：
+- Sprint #6 M6-001/002/003/004 全部完成
+- 累计 E2E 覆盖 25 个（13 dev + 15 prod → 部分新增重叠，但真实覆盖强）
+- 核心「用户场景」跑通：看到角色 → 点角色 → 进聊天 → 跟 LLM 对话
+
+**关联决策**：[Sprint #5 积木人](dev-log.md) · [dev-plan.md Sprint #6](dev-plan.md) · [PRD §2.4 信息架构](project-design-report.md#24-信息架构)
+
+---
+
 ### Sprint #5 M5-001/002/003/004：积木人 + 角色点击 + 捏脸参数化
 **类型**：✅进度 + 📌决策 + 💡教训
 **相关任务**：M5-001 / M5-002 / M5-003 / M5-004

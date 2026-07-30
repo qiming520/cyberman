@@ -209,6 +209,36 @@ Sprint #1 → Sprint #2 衔接时，已由 zustand `persist` 中间件保证 Loc
 
 ---
 
+### Sprint #6：聊天主厅（M1-006 · Vercel AI SDK + BYOK 流式输出）
+- **周期**：2026-07-30 起
+- **目标**：从「看到 3D 角色」到「真的能跟它对话」—— 接入 Vercel AI SDK + BYOK API Key + 流式输出
+- **验证标准**：dev E2E 13 pass + prod E2E 13 pass（新增 3 步：聊天页加载 + 无 Key 时错误提示 + UI 完整）
+- **⚠️ 收尾要求**：每个任务结束后立即执行 [任务结束 checklist](dev-process.md#23-任务结束-checklist)
+
+**User Story**：
+> 作为用户，我希望点击 3D 场景中的「小柚」进入聊天页，能看到它的灵魂 prompt 编译结果，输入消息后能流式看到它的回复（用我自己的 API Key）。
+
+| ID | 任务 | 状态 | 工时 | 验证标准 | 备注 |
+|---|---|---|---|---|---|
+| M6-001 | **🆕 Vercel AI SDK 集成**（ai + 4 个 Provider 包） | ⚪ | 1h | typecheck 0 error；Orchestrator 函数签名定义 | 装依赖 + 类型 |
+| M6-002 | **🆕 AgentOrchestrator**（流式 + 错误处理 + BYOK fallback） | ⚪ | 3h | compileStream / cancel 函数；无 API Key 抛友好错误 | Tech Design §4.2 |
+| M6-003 | **🆕 ChatPage 集成**（读 ?soulId、加载 SoulConfig、Provider 选择、流式 UI） | ⚪ | 3h | /chat?soulId=xxx 加载角色；输入消息→流式 chunk→停止按钮；无 Key 提示 | 接 useChatStore + useSettingsStore |
+| M6-004 | **🆕 E2E 增量**（prod 验证聊天页 UI + 错误状态） | ⚪ | 1h | prod E2E 新增 3 步：聊天页 UI 完整 / 无 Key 时显示错误 / 流式消息渲染 | 复用 verify-production.mjs |
+
+**Sprint 进度**：0/4 完成（0%）
+
+**关键约束**：
+- **BYOK**：用户必须先在 Settings 浮层填 API Key
+- **真实 LLM 调用需要网络 + API Key**：E2E 不能实测流式输出（用 Mock 或错误状态）
+- **流式 chunk 状态管理**：用 useChatStore.appendChunk（已实现 M1-003）
+
+**不在本阶段**：
+- 长期记忆（每次对话的总结）—— 留 Sprint #7
+- 情绪状态机（基于对话更新情绪）—— 留 Sprint #7
+- 多角色智能调度（场景里角色自动响应）—— 留 Sprint #7
+
+---
+
 **Sprint 进度**：4/4 完成（100%）✅ Sprint #2 完成
 
 **⚠️ → ✅ Sprint #2 已知产品边界**（E2E 验证）：

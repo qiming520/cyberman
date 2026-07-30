@@ -138,6 +138,29 @@ check('详情 Modal 显示捏脸参数「身高 1.0」「体型 0.95」', async 
 await page.screenshot({ path: 'e2e/screenshots/production-detail-modal.png', fullPage: false });
 console.log(`📸 截图 2：e2e/screenshots/production-detail-modal.png`);
 
+console.log(`Step 5: 验证聊天页（/chat?soulId=xxx）...`);
+await page.goto(BASE + '/chat?soulId=test-soul-1', { waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(1500);
+check('聊天页显示角色名「小柚」', async () => {
+  return (await page.locator('h2:has-text("小柚")').count()) >= 1;
+});
+check('聊天页显示 Provider 选择器（OpenAI / Anthropic / DeepSeek）', async () => {
+  return (await page.locator('option:has-text("OpenAI")').count()) >= 1;
+});
+check('聊天页显示模型输入框', async () => {
+  return (await page.locator('input[placeholder="模型名"]').count()) >= 1;
+});
+check('聊天页有输入框 + 发送按钮', async () => {
+  const textarea = await page.locator('textarea').count();
+  const sendBtn = await page.locator('button:has-text("发送")').count();
+  return textarea >= 1 && sendBtn >= 1;
+});
+check('无 API Key 时显示警告「未配置 openai API Key」', async () => {
+  return (await page.locator('text=未配置').count()) >= 1;
+});
+await page.screenshot({ path: 'e2e/screenshots/production-chat-page.png', fullPage: false });
+console.log(`📸 截图 3：e2e/screenshots/production-chat-page.png`);
+
 await browser.close();
 if (server) server.kill();
 
