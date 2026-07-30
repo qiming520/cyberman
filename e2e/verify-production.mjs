@@ -206,6 +206,9 @@ await page.screenshot({ path: 'e2e/screenshots/production-emotion-default.png', 
 console.log(`📸 截图 5：e2e/screenshots/production-emotion-default.png`);
 
 console.log(`Step 8: 验证智能调度（M7-004）— 无 ?soulId 时自动选 active...`);
+// 先关掉可能开着的 SoulDetailModal（避免遮罩挡后续点击）
+await page.keyboard.press('Escape');
+await page.waitForTimeout(500);
 await page.goto(BASE + '/chat', { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(2000);
 check('无 ?soulId 时自动选第一个角色「小柚」', async () => {
@@ -213,6 +216,43 @@ check('无 ?soulId 时自动选第一个角色「小柚」', async () => {
 });
 await page.screenshot({ path: 'e2e/screenshots/production-auto-dispatch.png', fullPage: false });
 console.log(`📸 截图 6：e2e/screenshots/production-auto-dispatch.png`);
+
+console.log(`Step 9: 验证移动端布局（M14 · iPhone 375 视口）...`);
+// 切到移动端视口
+await page.setViewportSize({ width: 375, height: 812 });
+await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(2000);
+check('移动端首屏 Canvas 仍创建', async () => {
+  return (await page.locator('canvas').count()) >= 1;
+});
+check('移动端汉堡按钮出现（取代桌面端横排导航）', async () => {
+  return (await page.locator('button[aria-label="打开菜单"], button[aria-label="关闭菜单"]').count()) >= 1;
+});
+await page.click('button[aria-label="打开菜单"]');
+await page.waitForTimeout(300);
+check('点击汉堡按钮展开移动端菜单（4 个 NavLink）', async () => {
+  return (await page.locator('nav a').count()) >= 4;
+});
+await page.screenshot({ path: 'e2e/screenshots/production-mobile-home.png', fullPage: false });
+console.log(`📸 截图 7：e2e/screenshots/production-mobile-home.png`);
+
+// 移动端聊天页
+await page.goto(BASE + '/chat?soulId=test-soul-1', { waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(1500);
+check('移动端聊天页显示角色名', async () => {
+  return (await page.locator('h2:has-text("小柚")').count()) >= 1;
+});
+check('移动端聊天页有输入框（max-w 缩窄）', async () => {
+  return (await page.locator('textarea').count()) >= 1;
+});
+check('移动端聊天页有摄像头按钮（M16）', async () => {
+  return (await page.locator('button[title*="拍照"]').count()) >= 1;
+});
+await page.screenshot({ path: 'e2e/screenshots/production-mobile-chat.png', fullPage: false });
+console.log(`📸 截图 8：e2e/screenshots/production-mobile-chat.png`);
+
+// 切回桌面端（避免影响后续 E2E）
+await page.setViewportSize({ width: 1440, height: 900 });
 
 await browser.close();
 if (server) server.kill();

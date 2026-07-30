@@ -119,6 +119,15 @@ export function HumanFigure({
             <boxGeometry args={[0.32, 0.06, 0.08]} />
             <meshStandardMaterial color={hairColor} />
           </mesh>
+          {/* M12-001 鬓角 */}
+          <mesh position={[-0.22, 1.45, 0.05]} rotation={[0, 0, -0.3]}>
+            <sphereGeometry args={[0.06, 12, 12]} />
+            <meshStandardMaterial color={hairColor} />
+          </mesh>
+          <mesh position={[0.22, 1.45, 0.05]} rotation={[0, 0, 0.3]}>
+            <sphereGeometry args={[0.06, 12, 12]} />
+            <meshStandardMaterial color={hairColor} />
+          </mesh>
         </>
       )}
       {hairStyle === 'long' && (
@@ -133,8 +142,43 @@ export function HumanFigure({
             <cylinderGeometry args={[0.15, 0.05, 0.7, 16]} />
             <meshStandardMaterial color={hairColor} />
           </mesh>
+          {/* 鬓角 */}
+          <mesh position={[-0.22, 1.45, 0.05]} rotation={[0, 0, -0.3]}>
+            <sphereGeometry args={[0.07, 12, 12]} />
+            <meshStandardMaterial color={hairColor} />
+          </mesh>
+          <mesh position={[0.22, 1.45, 0.05]} rotation={[0, 0, 0.3]}>
+            <sphereGeometry args={[0.07, 12, 12]} />
+            <meshStandardMaterial color={hairColor} />
+          </mesh>
         </>
       )}
+
+      {/* M12-001 眉毛 */}
+      <mesh position={[-0.08, 1.55, 0.18]} rotation={[0, 0, -0.2]}>
+        <boxGeometry args={[0.06, 0.012, 0.012]} />
+        <meshStandardMaterial color="#1e293b" />
+      </mesh>
+      <mesh position={[0.08, 1.55, 0.18]} rotation={[0, 0, 0.2]}>
+        <boxGeometry args={[0.06, 0.012, 0.012]} />
+        <meshStandardMaterial color="#1e293b" />
+      </mesh>
+
+      {/* M12-001 鼻梁（小小三角鼻尖） */}
+      <mesh position={[0, 1.42, 0.21]} rotation={[Math.PI / 2, 0, Math.PI / 4]}>
+        <coneGeometry args={[0.025, 0.04, 4]} />
+        <meshStandardMaterial color={skinColor} />
+      </mesh>
+
+      {/* M12-001 耳朵 */}
+      <mesh position={[-0.22, 1.45, 0]} rotation={[0, 0, -0.2]}>
+        <sphereGeometry args={[0.04, 12, 12]} />
+        <meshStandardMaterial color={skinColor} />
+      </mesh>
+      <mesh position={[0.22, 1.45, 0]} rotation={[0, 0, 0.2]}>
+        <sphereGeometry args={[0.04, 12, 12]} />
+        <meshStandardMaterial color={skinColor} />
+      </mesh>
 
       {/* 眼（黑球） */}
       <mesh position={[-0.08, 1.48, 0.18]}>
@@ -225,15 +269,27 @@ export function HumanFigure({
         <meshStandardMaterial color="#0f172a" />
       </mesh>
 
+      {/* M12-002 衣领（V 领） */}
+      <mesh position={[0, 1.02, 0.2]} rotation={[0, 0, 0]}>
+        <coneGeometry args={[0.12, 0.15, 4, 1, true]} />
+        <meshStandardMaterial color="#1e293b" />
+      </mesh>
+
       {/* 左腿 */}
       <group position={[-0.13, 0.3, 0]}>
+        {/* 裤腿 */}
         <mesh position={[0, -0.25, 0]}>
           <capsuleGeometry args={[0.1, 0.4, 8, 12]} />
           <meshStandardMaterial color={bodyColor} />
         </mesh>
+        {/* M12-002 鞋底（双层：鞋帮 + 鞋底） */}
         <mesh position={[0, -0.55, 0.05]}>
           <boxGeometry args={[0.18, 0.06, 0.28]} />
           <meshStandardMaterial color="#1a1a1a" />
+        </mesh>
+        <mesh position={[0, -0.6, 0.05]}>
+          <boxGeometry args={[0.2, 0.02, 0.3]} />
+          <meshStandardMaterial color="#fef3c7" />
         </mesh>
       </group>
 
@@ -246,6 +302,10 @@ export function HumanFigure({
         <mesh position={[0, -0.55, 0.05]}>
           <boxGeometry args={[0.18, 0.06, 0.28]} />
           <meshStandardMaterial color="#1a1a1a" />
+        </mesh>
+        <mesh position={[0, -0.6, 0.05]}>
+          <boxGeometry args={[0.2, 0.02, 0.3]} />
+          <meshStandardMaterial color="#fef3c7" />
         </mesh>
       </group>
     </group>

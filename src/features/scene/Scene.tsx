@@ -21,8 +21,12 @@ import { HumanFigure, getHumanParams } from './HumanFigure';
 import type { SoulConfig } from '@/stores/souls';
 
 // 角色位置布局：6 个槽位，沿 X 轴均布
+// 移动端（< 768）用更密集的槽位避免出屏
 function getPositionByIndex(index: number): [number, number, number] {
-  const slots = [-3, -1.8, -0.6, 0.6, 1.8, 3];
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const slots = isMobile
+    ? [-1.5, -0.9, -0.3, 0.3, 0.9, 1.5]  // 移动端密集
+    : [-3, -1.8, -0.6, 0.6, 1.8, 3];        // 桌面端
   const x = slots[index % slots.length] ?? 0;
   return [x, 0, 0];
 }

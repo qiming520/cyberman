@@ -24,7 +24,9 @@ import { DiceBearAvatar } from '@/features/soul/editor/DiceBearAvatar';
 import { getAgentOrchestrator } from '@/features/agent/orchestrator';
 import { maybeSummarize, getMemoryContext } from '@/features/memory/summarizer';
 import { tts } from '@/features/sensory/tts';
-import { Send, Square, Settings as SettingsIcon, AlertCircle, Volume2, VolumeX } from 'lucide-react';
+import { useVoiceInput } from '@/features/sensory/voiceInput';
+import { useCamera } from '@/features/sensory/camera';
+import { Send, Square, Settings as SettingsIcon, AlertCircle, Volume2, VolumeX, Mic, MicOff, Camera, CameraOff, X } from 'lucide-react';
 
 export function ChatPage() {
   const [searchParams] = useSearchParams();
@@ -60,6 +62,47 @@ export function ChatPage() {
   const [memoryCount, setMemoryCount] = useState(0);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // M13-001 语音输入
+  const voice = useVoiceInput();
+
+  // 录音结束时把识别结果填入输入框
+  useEffect(() => {
+    if (!voice.isListening && voice.transcript && !voice.error) {
+      setInput(prev => prev + (prev ? ' ' : '') + voice.transcript);
+      voice.reset();
+    }
+  }, [voice.isListening, voice.transcript, voice.error, voice]);
+
+  // M16-001 摄像头（仅当 isCameraOpen 时启用）
+  const camera = useCamera();
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const videoElementRef = useRef<HTMLVideoElement | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const openCamera = async () => {
+    setCameraError(null);
+    setIsCameraOpen(true);
+    await camera.startCamera();
+  };
+
+  const closeCamera = () => {
+    camera.stopCamera();
+    setIsCameraOpen(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoElementRef.current) {
+      videoElementRef.current.srcObject = camera.stream;
+    }
+    const photo = camera.takePhoto();
+    if (photo) {
+      setInput(prev => prev + (prev ? ' ' : '') + '[已拍照]');
+      closeCamera();
+    } else if (camera.error) {
+      setCameraError(camera.error);
+    }
+  };
 
   // soulId 变化时：summarize 上次会话 + 启动新会话 + 加载 memory
   useEffect(() => {
@@ -166,7 +209,7 @@ export function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)] -mx-6 -my-8 bg-slate-950">
+    <div className="flex flex-col h-[calc(100vh-7rem)] -mx-4 sm:-mx-6 -my-4 sm:-my-8 bg-slate-950">
       {/* 顶部：角色信息 + Provider 选择 */}
       <header className="border-b border-slate-800 bg-slate-900/40 px-6 py-3 flex items-center gap-4">
         <DiceBearAvatar seed={soul.identity.avatarSeed} size={40} />
@@ -222,6 +265,73 @@ export function ChatPage() {
       </div>
 
       {/* 错误提示 */}
+      {voice.error && (
+        <div className="mx-6 mb-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center gap-2 text-sm text-amber-300">
+          <MicOff size={16} />
+          <span>{voice.error}</span>
+          <button
+            type="button"
+            onClick={() => voice.reset()}
+            className="ml-auto text-xs underline"
+          >
+            关闭
+          </button>
+        </div>
+      )}
+
+      {/* M16-002 摄像头浮层 */}
+      {isCameraOpen && (
+        <div className="absolute inset-0 z-40 bg-black/80 backdrop-blur flex items-center justify-center">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-4 max-w-lg w-full mx-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-slate-100 flex items-center gap-2">
+                <Camera size={16} />
+                拍照
+              </h3>
+              <button
+                type="button"
+                onClick={closeCamera}
+                className="p-1 text-slate-400 hover:text-slate-100"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {/* 视频预览 */}
+            <div className="aspect-video bg-slate-950 rounded-lg overflow-hidden mb-3">
+              <video
+                ref={videoElementRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+              />
+            </div>
+            {cameraError && (
+              <div className="mb-2 text-xs text-rose-400">{cameraError}</div>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={capturePhoto}
+                disabled={!camera.stream}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded text-sm transition-colors"
+              >
+                <Camera size={14} />
+                拍照
+              </button>
+              <button
+                type="button"
+                onClick={closeCamera}
+                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-sm"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 错误提示 */}
       {error && (
         <div className="mx-6 mb-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg flex items-start gap-2 text-sm text-rose-300">
           <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
@@ -254,11 +364,55 @@ export function ChatPage() {
                 handleSend();
               }
             }}
-            placeholder={apiKey ? `跟 ${soul.identity.name} 说点什么...（Enter 发送，Shift+Enter 换行）` : '请先在设置中填 API Key'}
+            placeholder={
+              voice.isListening
+                ? '正在聆听...'
+                : apiKey
+                ? `跟 ${soul.identity.name} 说点什么...（Enter 发送，Shift+Enter 换行）`
+                : '请先在设置中填 API Key'
+            }
             rows={1}
-            disabled={!apiKey || sending}
-            className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-slate-500 resize-none max-h-32 disabled:opacity-50"
+            disabled={!apiKey || sending || voice.isListening}
+            className={`flex-1 bg-slate-950 border rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none resize-none max-h-32 disabled:opacity-50 ${
+              voice.isListening ? 'border-rose-500 animate-pulse' : 'border-slate-700 focus:border-slate-500'
+            }`}
           />
+          {/* M13-002 语音输入按钮 */}
+          {voice.isSupported && (
+            <button
+              type="button"
+              onClick={() => {
+                if (voice.isListening) voice.stop();
+                else voice.start();
+              }}
+              disabled={!apiKey || sending}
+              className={`flex items-center justify-center p-2.5 rounded-lg transition-colors ${
+                voice.isListening
+                  ? 'bg-rose-600 text-white hover:bg-rose-500 animate-pulse'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-50'
+              }`}
+              title={voice.isListening ? '停止录音' : '开始语音输入'}
+            >
+              {voice.isListening ? <MicOff size={16} /> : <Mic size={16} />}
+            </button>
+          )}
+
+          {/* M16-002 摄像头按钮（拍照） */}
+          {camera.isSupported && (
+            <button
+              type="button"
+              onClick={() => (isCameraOpen ? closeCamera() : openCamera())}
+              disabled={!apiKey || sending}
+              className={`flex items-center justify-center p-2.5 rounded-lg transition-colors ${
+                isCameraOpen
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-50'
+              }`}
+              title={isCameraOpen ? '关闭摄像头' : '拍照'}
+            >
+              {isCameraOpen ? <CameraOff size={16} /> : <Camera size={16} />}
+            </button>
+          )}
           {sending ? (
             <button
               type="button"
@@ -300,7 +454,7 @@ function MessageBubble({
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-2xl rounded-lg px-4 py-2.5 text-sm leading-relaxed ${
+        className={`max-w-[85%] sm:max-w-2xl rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-sm leading-relaxed ${
           isUser
             ? 'bg-blue-600 text-white'
             : 'bg-slate-800 text-slate-100'
