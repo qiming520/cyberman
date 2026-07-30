@@ -138,7 +138,11 @@ export function SoulEditor({ methods, onSubmit, submitLabel = '创建灵魂' }: 
 
 function soulToForm(soul: SoulConfig): SoulFormValues {
   return {
-    identity: { ...soul.identity },
+    identity: {
+      ...soul.identity,
+      hairStyle: soul.identity.hairStyle ?? 'short',
+      hairColor: soul.identity.hairColor ?? '#1e293b',
+    },
     personality: {
       mbti: soul.personality.mbti,
       traits: [...soul.personality.traits],
@@ -162,12 +166,17 @@ function soulToForm(soul: SoulConfig): SoulFormValues {
       documents: [...soul.knowledge.documents],
       manualFacts: [...soul.knowledge.manualFacts],
     },
+    body: soul.body ?? { height: 1.0, bodyType: 1.0 },
   };
 }
 
 function formToCreate(form: SoulFormValues): Omit<SoulConfig, 'id' | 'createdAt' | 'updatedAt'> {
   return {
-    identity: { ...form.identity },
+    identity: {
+      ...form.identity,
+      hairStyle: form.identity.hairStyle ?? 'short',
+      hairColor: form.identity.hairColor ?? '#1e293b',
+    },
     personality: {
       mbti: form.personality.mbti || undefined,
       traits: form.personality.traits ?? [],
@@ -191,12 +200,17 @@ function formToCreate(form: SoulFormValues): Omit<SoulConfig, 'id' | 'createdAt'
       documents: form.knowledge.documents ?? [],
       manualFacts: form.knowledge.manualFacts ?? [],
     },
+    body: form.body ?? { height: 1.0, bodyType: 1.0 },
   };
 }
 
 function formToSoulPatch(form: SoulFormValues): Partial<SoulConfig> {
   return {
-    identity: { ...form.identity },
+    identity: {
+      ...form.identity,
+      hairStyle: form.identity.hairStyle ?? 'short',
+      hairColor: form.identity.hairColor ?? '#1e293b',
+    },
     personality: {
       mbti: form.personality.mbti || undefined,
       traits: form.personality.traits ?? [],
@@ -220,5 +234,6 @@ function formToSoulPatch(form: SoulFormValues): Partial<SoulConfig> {
       documents: form.knowledge.documents ?? [],
       manualFacts: form.knowledge.manualFacts ?? [],
     },
+    body: form.body ?? { height: 1.0, bodyType: 1.0 },
   };
 }

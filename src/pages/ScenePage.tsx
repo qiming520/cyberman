@@ -12,33 +12,45 @@
  * - GLB 模型加载 —— Sprint #5
  * - 真实的灵魂编辑器浮层（暂时用 iframe 嵌入 WorkshopPage）
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Scene } from '@/features/scene/Scene';
 import { Modal } from '@/components/ui/Modal';
+import { SoulDetailModal } from '@/components/soul/SoulDetailModal';
 import { HomePage } from '@/pages/HomePage';
 import { WorkshopPage } from '@/pages/WorkshopPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { Users, Hammer, Settings as SettingsIcon, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSoulsStore } from '@/stores/souls';
 
 type OverlayType = 'characters' | 'workshop' | 'settings' | null;
 
 export function ScenePage() {
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const setActiveSoul = useSoulsStore((s) => s.setActiveSoul);
+
+  // URL 参数 ?detail=soulId 直接打开详情 Modal（E2E / 深链接）
+  useEffect(() => {
+    const detailId = searchParams.get('detail');
+    if (detailId) {
+      setActiveSoul(detailId);
+    }
+  }, [searchParams, setActiveSoul]);
 
   const close = () => setOverlay(null);
 
   return (
     <div className="relative h-[calc(100vh-7rem)] -mx-6 -my-8 rounded-lg overflow-hidden bg-slate-950">
-      {/* 3D 场景（占满全区域） */}
+      {/* 3D 场景（占满全区域） · 角色点击 → store.setActiveSoul → SoulDetailModal 自动打开 */}
       <Scene />
 
       {/* 顶部导航栏（浮在 3D 上） */}
       <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none">
         <div className="bg-slate-900/70 backdrop-blur border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300">
           <div className="font-medium text-slate-100">聊天大厅</div>
-          <div className="text-slate-500 mt-0.5">鼠标拖动旋转 · 滚轮缩放</div>
+          <div className="text-slate-500 mt-0.5">鼠标拖动旋转 · 滚轮缩放 · 点击角色</div>
         </div>
 
         <div className="flex items-center gap-2 pointer-events-auto">
@@ -94,6 +106,9 @@ export function ScenePage() {
       >
         <SettingsPage />
       </Modal>
+
+      {/* 浮层 4：角色详情（auto 模式 · 响应 store.activeSoulId）*/}
+      <SoulDetailModal />
 
       {/* 旧页面跳转（开发期过渡） */}
       <div className="absolute bottom-4 right-4 pointer-events-auto">

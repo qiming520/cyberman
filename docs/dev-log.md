@@ -26,6 +26,102 @@
 
 ## 2026-07-30
 
+### Sprint #5 M5-001/002/003/004：积木人 + 角色点击 + 捏脸参数化
+**类型**：✅进度 + 📌决策 + 💡教训
+**相关任务**：M5-001 / M5-002 / M5-003 / M5-004
+**关联**：[本文件上一条「Sprint #4 单页架构」](dev-log.md) · [dev-plan.md §Sprint #5](dev-plan.md)
+
+**背景**：
+Sprint #4 完成 3D 场景骨架（capsule + sphere 占位）。Sprint #5 要：
+1. 角色升级为「积木人」风格（procedural 几何体组合）
+2. 角色可点击 → 详情 Modal
+3. 捏脸参数化（身高/体型/颜色/发型 4 个核心参数）
+
+**进展**：
+
+**1. 文件清单**
+
+| 文件 | 变更 |
+|---|---|
+| `src/features/scene/HumanFigure.tsx` | 🆕 积木人组件（capsule + sphere + 圆柱 + 简单五官 + 双臂双腿） |
+| `src/components/soul/SoulDetailModal.tsx` | 🆕 灵魂详情 Modal（auto 模式响应 store.activeSoulId） |
+| `src/features/scene/Scene.tsx` | ✏️ 用 HumanFigure 替换几何体；接 onCharacterClick 回调 |
+| `src/stores/souls.ts` | ✏️ IdentityConfig 加 hairStyle/hairColor；SoulConfig 加 BodyParams |
+| `src/features/soul/schema.ts` | ✏️ 加 HairStyleEnum + bodyParamsSchema；默认值 |
+| `src/features/soul/editor/SoulEditor.tsx` | ✏️ formToCreate/SoulPatch/soulToForm 处理 body 字段 |
+| `src/pages/ScenePage.tsx` | ✏️ 加 `?detail=soulId` URL 参数支持；删除手动 detailSoulId state |
+| `e2e/verify-production.mjs` | ✏️ 加 6 步 SoulDetailModal 验证（弹窗 + 姓名 + 关系 + traits + MBTI + 捏脸参数） |
+
+**2. 验证结果（23 pass / 0 fail）**
+
+```
+dev mode (npm run e2e)：
+  13 pass / 0 fail（MVP 完整流程，回归基线）
+
+production (npm run e2e:prod)：
+  10 pass / 0 fail
+  - Canvas 创建 / 尺寸 / 无错误
+  - 角色库浮层打开
+  - 详情 Modal：弹窗 + 姓名「小柚」+ 关系「女友」+ traits「温柔」+ MBTI「INFP」+ 捏脸参数「身高 1.0」「体型 0.95」
+
+截图证据：
+  - production-3d-verified.png：积木人 2 个角色站立
+  - production-detail-modal.png：详情 Modal 完整显示 + 背景模糊 3D
+```
+
+**3. 关键设计**
+
+📌 **决策 1：积木人用 procedural 几何体，不依赖 GLB 资产**
+- 头（sphere）+ 头发（半球/球）+ 眼（2 小球）+ 嘴（扁圆柱）
+- 身体（capsule）+ 双臂（capsule + capsule + 手球）+ 双腿（capsule + 脚盒）
+- 优势：本地生成，0 资产依赖；可控参数（身高/体型/发型/发色）
+- 劣势：不如 GLB 真实（留 Sprint #7 接 GLB）
+
+📌 **决策 2：SoulDetailModal auto 模式（响应 store.activeSoulId）**
+- 之前：手动维护 detailSoulId 状态
+- 现在：组件自动订阅 store，3D 角色点击 → setActiveSoul → Modal 自动弹
+- 优势：单一数据源，状态同步零成本
+- 优势：E2E 可用 `?detail=soulId` URL 参数直接触发（无需模拟 3D click）
+
+📌 **决策 3：SoulConfig 加 BodyParams 子接口**
+- 不是加 4 个散字段，而是 `body?: { height, bodyType }`
+- 未来扩展：肌肉量、肤色深度、面部特征等
+- 当前实现只 height + bodyType（M5-003 最小集合）
+
+**4. 4 条💡 教训**
+
+💡 **教训 1：E2E 不能模拟 3D Canvas 内部 click**
+- 最初想用 page.click({ position: {x, y} }) 模拟 3D 角色点击
+- 但 R3F 内部 click 事件经过 WebGL 拾取，Playwright 难精确定位
+- 修法：加 `?detail=soulId` URL 参数支持，让 E2E 用 page.goto 触发详情 Modal
+
+💡 **教训 2：uncontrolled vs controlled 状态混用风险**
+- SoulDetailModal 一开始是 controlled（外部传 soulId）
+- 改为 auto 模式（响应 store）后，外部仍可传 soulId override
+- 教训：组件应支持 dual-mode（auto + controlled），让父组件按场景选择
+
+💡 **教训 3：SoulEditor 的 3 个转换函数都要同步更新**
+- soulToForm / formToCreate / formToSoulPatch 三个函数并行维护
+- 加新字段必须三个都改，否则旧灵魂加载 or 保存会缺字段
+- 修法：用一个 generic 转换函数避免重复（M2 末重构）
+
+💡 **教训 4：背景模糊 + 3D 场景的视觉层次**
+- 详情 Modal 背后模糊，3D 场景仍可见
+- 用户感知：「我点击了 3D 角色，弹窗出来，角色还在场景里」
+- 这种「在世界中」的感觉是单页架构的核心价值
+
+**5. 影响**
+
+- Sprint #5 M5-001/002/003/004 全部完成
+- 用户体验：3D 场景里能点角色查看完整信息
+- 数据流：SoulConfig 新增 body 字段，3D 实时反映
+- 后续 Sprint #6 重点：M1-006 聊天主厅（Vercel AI SDK + BYOK 流式输出）
+
+**关联任务**：Sprint #5 M5-001/002/003/004
+**关联决策**：[Sprint #4 单页架构](dev-log.md) · [dev-plan.md Sprint #5](dev-plan.md)
+
+---
+
 ### Sprint #4 M4-001/002/003/004：单页架构 + 多角色 + 浮层第一阶段
 **类型**：✅进度 + 📌决策 + 💡教训
 **相关任务**：M4-001 / M4-002 / M4-003 / M4-004

@@ -1,21 +1,21 @@
 /**
- * 3D 场景（Sprint #4 · 多角色版本）
+ * 3D 场景（Sprint #5 · 积木人版本）
  *
- * 详解 dev-log.md「Sprint #4 M4-002」
+ * 详解 dev-log.md「Sprint #4 M4-002」+ 「Sprint #5 M5-001」
  *
  * 当前实现：
  * - Canvas + 灯光 + 地板 + 相机
  * - 从 useSoulsStore 读所有灵魂，循环渲染（每角色一个 character group）
- * - 角色按创建顺序沿 X 轴分布（-3m 到 +3m，6 个槽位）
- * - 角色颜色根据 identity 哈希派生（确定性但有区分度）
- * - 角色头顶显示名字飘字（用 drei <Text>，自动朝向相机）
- * - 选中角色环形标记（红色 ring，活跃反白）
+ * - 角色用 HumanFigure 积木人组件（头 + 身 + 双臂 + 双腿 + 简单五官）
+ * - 6 槽位 X 轴布局 + 名字飘字 + 关系标签 + 选中环
+ * - 选中角色点击 → onClick 回调（ScenePage 接 → 弹详情 Modal）
  *
- * 下个 Sprint：useGLTF 加载真实 GLB 模型
+ * 下个 Sprint（M5-003）：捏脸参数化（身高/体型/颜色/发型 4 个参数可调）
  */
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Text } from '@react-three/drei';
 import { useSoulsStore } from '@/stores/souls';
+import { HumanFigure, getHumanParams } from './HumanFigure';
 import type { SoulConfig } from '@/stores/souls';
 
 // 角色位置布局：6 个槽位，沿 X 轴均布
@@ -25,19 +25,12 @@ function getPositionByIndex(index: number): [number, number, number] {
   return [x, 0, 0];
 }
 
-// 颜色由 identity.name 哈希派生（紫色色调，避撞性别）
-function colorFromName(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  }
-  const hue = (Math.abs(hash) % 60) + 250;  // 250-310 紫色调
-  const sat = 65 + (Math.abs(hash) % 20);  // 65-85%
-  const light = 55 + (Math.abs(hash) % 10);  // 55-65%
-  return `hsl(${hue}, ${sat}%, ${light}%)`;
+interface SceneProps {
+  /** 角色点击回调（外部 ScenePage 注入 → 打开详情 Modal） */
+  onCharacterClick?: (soulId: string) => void;
 }
 
-export function Scene() {
+export function Scene({ onCharacterClick }: SceneProps = {}) {
   const souls = useSoulsStore((s) => s.souls);
   const activeSoulId = useSoulsStore((s) => s.activeSoulId);
   const setActiveSoul = useSoulsStore((s) => s.setActiveSoul);
@@ -67,9 +60,11 @@ export function Scene() {
           key={soul.id}
           soul={soul}
           position={getPositionByIndex(i)}
-          color={colorFromName(soul.identity.name)}
           isActive={activeSoulId === soul.id}
-          onClick={() => setActiveSoul(soul.id)}
+          onClick={() => {
+            setActiveSoul(soul.id);
+            onCharacterClick?.(soul.id);
+          }}
         />
       ))}
 
@@ -91,13 +86,13 @@ export function Scene() {
 interface CharacterGroupProps {
   soul: SoulConfig;
   position: [number, number, number];
-  color: string;
   isActive: boolean;
   onClick: () => void;
 }
 
-function CharacterGroup({ soul, position, color, isActive, onClick }: CharacterGroupProps) {
+function CharacterGroup({ soul, position, isActive, onClick }: CharacterGroupProps) {
   const name = soul.identity.name || '未命名';
+  const params = getHumanParams(soul);
 
   return (
     <group position={position} onClick={onClick}>
@@ -109,17 +104,16 @@ function CharacterGroup({ soul, position, color, isActive, onClick }: CharacterG
         </mesh>
       )}
 
-      {/* 身体（capsule） */}
-      <mesh position={[0, 0.7, 0]} castShadow onClick={onClick}>
-        <capsuleGeometry args={[0.3, 0.8, 8, 16]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-
-      {/* 头部（sphere） */}
-      <mesh position={[0, 1.45, 0]} castShadow onClick={onClick}>
-        <sphereGeometry args={[0.22, 32, 32]} />
-        <meshStandardMaterial color="#fde68a" />
-      </mesh>
+      {/* 积木人 */}
+      <HumanFigure
+        bodyColor={params.bodyColor}
+        skinColor={params.skinColor}
+        hairColor={params.hairColor}
+        hairStyle={params.hairStyle}
+        height={params.height}
+        bodyType={params.bodyType}
+        onClick={onClick}
+      />
 
       {/* 头顶名字飘字 */}
       <Text
@@ -130,6 +124,7 @@ function CharacterGroup({ soul, position, color, isActive, onClick }: CharacterG
         anchorY="middle"
         outlineWidth={0.02}
         outlineColor="#0f172a"
+        onUpdate={(self) => { self.renderOrder = 999; }}
       >
         {name}
       </Text>

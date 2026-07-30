@@ -29,12 +29,22 @@ export const MBTIEnum = z.enum([
 ]);
 export type MBTI = z.infer<typeof MBTIEnum>;
 
+export const HairStyleEnum = z.enum(['short', 'long', 'bald']);
+
 export const identitySchema = z.object({
   name: z.string().min(1, '请输入角色名').max(20, '不超过 20 字'),
   gender: GenderEnum,
   age: z.number().int().min(0).max(200),
   avatarSeed: z.string().min(1),
   pronouns: z.string().max(10).optional(),
+  // 捏脸参数（M5-003）
+  hairStyle: HairStyleEnum.optional(),
+  hairColor: z.string().optional(),
+});
+
+export const bodyParamsSchema = z.object({
+  height: z.number().min(0.8).max(1.2),
+  bodyType: z.number().min(0.7).max(1.3),
 });
 
 export const personalitySchema = z.object({
@@ -70,6 +80,7 @@ export const soulFormSchema = z.object({
   backstory: backstorySchema,
   relationship: relationshipSchema,
   knowledge: knowledgeSchema,
+  body: bodyParamsSchema.optional(),
 });
 
 export type SoulFormValues = z.infer<typeof soulFormSchema>;
@@ -82,6 +93,8 @@ export const defaultSoulValues: SoulFormValues = {
     age: 20,
     avatarSeed: crypto.randomUUID(),
     pronouns: '她',
+    hairStyle: 'short',
+    hairColor: '#1e293b',
   },
   personality: {
     mbti: undefined,
@@ -105,5 +118,9 @@ export const defaultSoulValues: SoulFormValues = {
   knowledge: {
     documents: [],
     manualFacts: [],
+  },
+  body: {
+    height: 1.0,
+    bodyType: 1.0,
   },
 };

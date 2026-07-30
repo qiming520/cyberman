@@ -36,6 +36,14 @@ export interface IdentityConfig {
   age: number;
   avatarSeed: string;
   pronouns?: string;
+  // 捏脸参数（M5-003 新增）
+  hairStyle?: 'short' | 'long' | 'bald';
+  hairColor?: string;
+}
+
+export interface BodyParams {
+  height: number;       // 0.8 - 1.2（默认 1.0 = 1.7m）
+  bodyType: number;     // 0.7 - 1.3（默认 1.0，胖瘦）
 }
 
 export interface PersonalityConfig {
@@ -79,6 +87,7 @@ export interface SoulConfig {
   backstory: BackstoryConfig;
   relationship: RelationshipConfig;
   knowledge: KnowledgeConfig;
+  body?: BodyParams;  // 捏脸参数（M5-003）
   createdAt: number;
   updatedAt: number;
 }

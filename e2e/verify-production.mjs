@@ -1,11 +1,8 @@
 /**
- * Production build E2E 验证（Sprint #3）
+ * Production build E2E 验证（Sprint #5）
  *
- * 用途：Vite dev mode + R3F v8 有已知兼容 bug（page error in createReconciler）
- * 但 production build 正常。本脚本验证 production 模式下 3D 真实渲染。
- *
- * 跑法：先 `npm run build`，然后 `node e2e/verify-production.mjs`（会自启 preview server）
- * 或：用 `node e2e/verify-production.mjs --no-server`（假定 preview server 已在 4173 跑）
+ * 跑法：`npm run build`，然后 `node e2e/verify-production.mjs`（自启 preview server）
+ * 或：`node e2e/verify-production.mjs --no-server`（假定 preview 已在 4173 跑）
  */
 import { chromium } from 'playwright';
 
@@ -15,19 +12,17 @@ const shouldStartServer = !process.argv.includes('--no-server');
 
 let server = null;
 if (shouldStartServer) {
-  // 用 spawn 启动 vite preview
   const { spawn } = await import('node:child_process');
   server = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT)], {
     stdio: 'pipe',
   });
-  // 等 server 起来
   await new Promise((resolve) => {
     let output = '';
     server.stdout.on('data', (d) => {
       output += d.toString();
       if (output.includes('Local:')) resolve();
     });
-    setTimeout(resolve, 5000);  // fallback
+    setTimeout(resolve, 5000);
   });
   console.log('✓ vite preview 已启动');
 }
@@ -41,7 +36,13 @@ const page = await context.newPage();
 const errors = [];
 page.on('pageerror', err => errors.push(err.message));
 
-console.log(`Step 1: 注入 2 个测试灵魂到 IDB ...`);
+let pass = 0, fail = 0;
+const check = (name, ok) => {
+  console.log(`  ${ok ? '✓' : '✗'} ${name}`);
+  if (ok) pass++; else fail++;
+};
+
+console.log(`Step 1: 注入 2 个测试灵魂到 IDB（含捏脸 body 字段）...`);
 await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(1500);
 
@@ -58,21 +59,23 @@ const seedResult = await page.evaluate(async () => {
   const souls = [
     {
       id: 'test-soul-1',
-      identity: { name: '小柚', gender: 'female', age: 22, avatarSeed: 'a', pronouns: '她' },
-      personality: { mbti: 'INFP', traits: ['温柔'], speakingStyle: '', emotionalBaseline: '温暖' },
-      backstory: { story: '', hobbies: [], preferences: [] },
-      relationship: { type: 'girlfriend', initialIntimacy: 70, currentIntimacy: 70, boundaries: [] },
+      identity: { name: '小柚', gender: 'female', age: 22, avatarSeed: 'a', pronouns: '她', hairStyle: 'long', hairColor: '#fbbf24' },
+      personality: { mbti: 'INFP', traits: ['温柔','娇嗔'], speakingStyle: '用「嗯哼」和 emoji', emotionalBaseline: '平静偏温暖' },
+      backstory: { story: '一位独立设计师，喜欢爵士乐和猫', occupation: '设计师', hobbies: ['听爵士','画画'], preferences: ['下雨天'] },
+      relationship: { type: 'girlfriend', initialIntimacy: 70, currentIntimacy: 70, boundaries: ['不聊政治'] },
       knowledge: { documents: [], manualFacts: [] },
+      body: { height: 1.0, bodyType: 0.95 },
       createdAt: now,
       updatedAt: now,
     },
     {
       id: 'test-soul-2',
-      identity: { name: '墨羽', gender: 'male', age: 24, avatarSeed: 'b', pronouns: '他' },
-      personality: { mbti: 'INTJ', traits: ['理性'], speakingStyle: '', emotionalBaseline: '冷静' },
+      identity: { name: '墨羽', gender: 'male', age: 24, avatarSeed: 'b', pronouns: '他', hairStyle: 'short', hairColor: '#1e293b' },
+      personality: { mbti: 'INTJ', traits: ['理性','冷静'], speakingStyle: '简洁', emotionalBaseline: '平静' },
       backstory: { story: '', hobbies: [], preferences: [] },
       relationship: { type: 'friend', initialIntimacy: 40, currentIntimacy: 40, boundaries: [] },
       knowledge: { documents: [], manualFacts: [] },
+      body: { height: 1.15, bodyType: 1.1 },
       createdAt: now,
       updatedAt: now,
     },
@@ -90,12 +93,6 @@ console.log(`Step 2: 刷新页面看 3D 场景渲染多角色 ...`);
 await page.reload({ waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(3000);
 
-let pass = 0, fail = 0;
-const check = (name, ok) => {
-  console.log(`  ${ok ? '✓' : '✗'} ${name}`);
-  if (ok) pass++; else fail++;
-};
-
 const canvasInfo = await page.evaluate(() => {
   const canvases = document.querySelectorAll('canvas');
   return Array.from(canvases).map(c => ({ width: c.width, height: c.height }));
@@ -104,23 +101,42 @@ check('Canvas 元素已创建（>=1）', canvasInfo.length >= 1);
 check('Canvas 尺寸合理（>1000px 宽，证明渲染中）', canvasInfo[0]?.width > 1000);
 check('无 page error', errors.length === 0);
 
-// 浮层：点击「角色库」按钮 → Modal 打开
-console.log(`Step 3: 验证浮层打开 ...`);
-await page.click('button:has-text("角色库")');
-await page.waitForTimeout(500);
-const overlayTextCount = await page.locator('text=角色库').count();
-check('浮层打开：Modal 显示「角色库」', overlayTextCount >= 2); // 至少 2 个：导航按钮 + Modal 标题
-await page.keyboard.press('Escape');
-await page.waitForTimeout(300);
-
 await page.screenshot({ path: 'e2e/screenshots/production-3d-verified.png', fullPage: false });
 console.log(`📸 截图 1：e2e/screenshots/production-3d-verified.png`);
 
-// 再截一张浮层打开的图
+console.log(`Step 3: 验证浮层打开（角色库按钮） ...`);
 await page.click('button:has-text("角色库")');
 await page.waitForTimeout(500);
-await page.screenshot({ path: 'e2e/screenshots/production-overlay-opened.png', fullPage: false });
-console.log(`📸 截图 2：e2e/screenshots/production-overlay-opened.png`);
+const overlayTextCount = await page.locator('text=角色库').count();
+check('浮层打开：Modal 显示「角色库」', overlayTextCount >= 2);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+
+console.log(`Step 4: 模拟点击 3D 角色 → SoulDetailModal 弹窗（用 ?detail URL）...`);
+await page.goto(BASE + '/?detail=test-soul-1', { waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(2500);
+check('点击 3D 角色（?detail URL）→ SoulDetailModal 弹窗', async () => {
+  return (await page.locator('text=灵魂详情').count()) >= 1;
+});
+check('详情 Modal 显示角色姓名「小柚」', async () => {
+  return (await page.locator('h3:has-text("小柚")').count()) >= 1;
+});
+check('详情 Modal 显示关系「女友」', async () => {
+  return (await page.locator('text=女友').count()) >= 1;
+});
+check('详情 Modal 显示性格 traits「温柔」', async () => {
+  return (await page.locator('text=温柔').count()) >= 1;
+});
+check('详情 Modal 显示 MBTI「INFP」', async () => {
+  return (await page.locator('text=INFP').count()) >= 1;
+});
+check('详情 Modal 显示捏脸参数「身高 1.0」「体型 0.95」', async () => {
+  const heightVisible = (await page.locator('text=1.0').count()) >= 1;
+  const bodyTypeVisible = (await page.locator('text=0.95').count()) >= 1;
+  return heightVisible && bodyTypeVisible;
+});
+await page.screenshot({ path: 'e2e/screenshots/production-detail-modal.png', fullPage: false });
+console.log(`📸 截图 2：e2e/screenshots/production-detail-modal.png`);
 
 await browser.close();
 if (server) server.kill();
