@@ -131,11 +131,11 @@ Sprint #1 → Sprint #2 衔接时，已由 zustand `persist` 中间件保证 Loc
 | ID | 任务 | 状态 | 工时 | 验证标准 | 备注 |
 |---|---|---|---|---|---|
 | M1-005a | 灵魂编辑器表单（5 sections：身份/人格/背景/关系/知识库占位） | ✅ | 4h | typecheck 0 error（修了 4 个）；4 路由 200；7 文件 Vite 编译成功；保存调用 useSoulsStore.createSoul | 见 PRD §4.1.1 / §2.5.1；详情见 Dev Log 2026-07-30 M1-005a 完成；教训：z.coerce / z.string().default / DiceBear API / 未用 import |
-| M1-005b | Prompt 编译 + 预览（右栏实时编译） | ⚪ | 3h | 编译输出与表单同步；展示 token 估算 | 见 PRD §4.1.2 / Tech Design §6.1 |
+| M1-005b | Prompt 编译 + 预览（右栏实时编译） | ✅ | 3h | typecheck 0 error；4 路由 200；5 文件 Vite 编译成功；左表单 + 右预览实时同步；末尾注入防护 | 见 PRD §4.1.2 / Tech Design §6.1；详情见 Dev Log 2026-07-30 M1-005b 完成；决策：MBTI 独立文件 + 注入防护放末尾 + useSoulEditor hook 抽离 |
 | M1-006 | 单角色文本对话（Vercel AI SDK + 流式输出） | ⚪ | 4h | 真实 LLM 调用；流式回复；Provider/Model 选择 | 见 PRD §4.3 / Tech Design §4.2 |
 | M1-007 | 对话历史持久化（IndexedDB） | ⚪ | 3h | 刷新后历史仍在；按 soulId 查询 | 见 Tech Design §5.1 / PRD §2.4 |
 
-**Sprint 进度**：1/4 完成（25%）
+**Sprint 进度**：2/4 完成（50%）
 
 ---## 四、附录：任务状态说明
 

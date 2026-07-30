@@ -1,18 +1,19 @@
 /**
- * 灵魂编辑器主组件（M1-005a）
+ * 灵魂编辑器主组件（M1-005b 重构）
  *
- * 范围（本任务）：
- * - 5 sections 完整表单（身份/人格/背景/关系/知识库占位）
- * - react-hook-form + zod resolver
- * - 调用 useSoulsStore.createSoul 保存
- *
- * 不在本任务（M1-005b / M2）：
- * - Prompt 编译预览（右栏）
- * - 编辑现有灵魂（仅新建；M2 接入路由参数）
- * - IndexedDB 持久化（M2）
+ * 设计：
+ * - `useSoulEditor({ onSaved })`：返回 `{ methods, onSubmit }`
+ * - `<SoulEditor methods={methods} onSubmit={onSubmit} />`：渲染左栏表单 UI
+ * - 父组件（WorkshopPage）用 `<FormProvider {...methods}>` 包裹两栏，
+ *   让左栏表单和右栏 PromptPreview 共享同一个 form state
  */
 import { useEffect } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
+import {
+  useForm,
+  FormProvider,
+  type UseFormReturn,
+  type SubmitHandler,
+} from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Save, RotateCcw, Sparkles } from 'lucide-react';
 import {
@@ -29,34 +30,34 @@ import {
   KnowledgeSection,
 } from './sections';
 
-export interface SoulEditorProps {
+// ─────────────────────────── Hook：useSoulEditor ───────────────────────────
+
+export interface UseSoulEditorOptions {
   /** 编辑现有灵魂的初始值；不传则新建 */
   initialSoul?: SoulConfig;
-  /** 保存后回调（默认跳转到首页） */
+  /** 保存后回调（默认无操作；父组件决定跳转） */
   onSaved?: (soulId: string) => void;
 }
 
-export function SoulEditor({ initialSoul, onSaved }: SoulEditorProps) {
+export interface UseSoulEditorReturn {
+  methods: UseFormReturn<SoulFormValues>;
+  onSubmit: SubmitHandler<SoulFormValues>;
+}
+
+export function useSoulEditor({
+  initialSoul,
+  onSaved,
+}: UseSoulEditorOptions = {}): UseSoulEditorReturn {
   const createSoul = useSoulsStore((s) => s.createSoul);
   const updateSoul = useSoulsStore((s) => s.updateSoul);
 
   const methods = useForm<SoulFormValues>({
     resolver: zodResolver(soulFormSchema),
-    defaultValues: initialSoul
-      ? soulToForm(initialSoul)
-      : defaultSoulValues,
+    defaultValues: initialSoul ? soulToForm(initialSoul) : defaultSoulValues,
     mode: 'onBlur',
   });
 
-  const { handleSubmit, reset, formState, watch } = methods;
-  const isDirty = formState.isDirty;
-
-  // 监听外部灵魂变化（如切换路由参数），重置表单
-  useEffect(() => {
-    if (initialSoul) reset(soulToForm(initialSoul));
-  }, [initialSoul, reset]);
-
-  const onSubmit = (values: SoulFormValues) => {
+  const onSubmit: SubmitHandler<SoulFormValues> = (values) => {
     if (initialSoul) {
       updateSoul(initialSoul.id, formToSoulPatch(values));
       onSaved?.(initialSoul.id);
@@ -66,6 +67,28 @@ export function SoulEditor({ initialSoul, onSaved }: SoulEditorProps) {
     }
   };
 
+  // 监听外部灵魂变化，重置表单
+  useEffect(() => {
+    if (initialSoul) methods.reset(soulToForm(initialSoul));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSoul]);
+
+  return { methods, onSubmit };
+}
+
+// ─────────────────────────── 组件：SoulEditor（左栏） ───────────────────────────
+
+export interface SoulEditorProps {
+  methods: UseFormReturn<SoulFormValues>;
+  onSubmit: SubmitHandler<SoulFormValues>;
+  /** 提交按钮文案（新建 vs 编辑） */
+  submitLabel?: string;
+}
+
+export function SoulEditor({ methods, onSubmit, submitLabel = '创建灵魂' }: SoulEditorProps) {
+  const { handleSubmit, reset, formState } = methods;
+  const isDirty = formState.isDirty;
+
   return (
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 max-w-3xl">
@@ -73,11 +96,11 @@ export function SoulEditor({ initialSoul, onSaved }: SoulEditorProps) {
           <div>
             <h2 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
               <Sparkles size={18} className="text-amber-400" />
-              {initialSoul ? '编辑灵魂' : '定制新灵魂'}
+              定制灵魂
               {isDirty && <span className="text-xs text-amber-500 font-mono">● 未保存</span>}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              字段随填随编 —— 右栏 Prompt 预览将在 M1-005b 启用
+              字段随填随编 —— 右栏实时预览编译结果
             </p>
           </div>
         </header>
@@ -88,7 +111,7 @@ export function SoulEditor({ initialSoul, onSaved }: SoulEditorProps) {
         <RelationshipSection />
         <KnowledgeSection />
 
-        <footer className="flex items-center justify-end gap-2 pt-2 sticky bottom-0 bg-slate-950/80 backdrop-blur py-3 border-t border-slate-800">
+        <footer className="flex items-center justify-end gap-2 pt-2">
           <button
             type="button"
             onClick={() => reset()}
@@ -103,12 +126,9 @@ export function SoulEditor({ initialSoul, onSaved }: SoulEditorProps) {
             className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded font-medium transition-colors"
           >
             <Save size={14} />
-            {initialSoul ? '保存修改' : '创建灵魂'}
+            {submitLabel}
           </button>
         </footer>
-
-        {/* 静默 useWatch 引用，避免 lint 警告 */}
-        <span className="hidden">{Object.keys(watch()).length}</span>
       </form>
     </FormProvider>
   );
@@ -175,7 +195,6 @@ function formToCreate(form: SoulFormValues): Omit<SoulConfig, 'id' | 'createdAt'
 }
 
 function formToSoulPatch(form: SoulFormValues): Partial<SoulConfig> {
-  // 编辑模式只更新业务字段（id/createdAt 由 store 维护）
   return {
     identity: { ...form.identity },
     personality: {
