@@ -112,9 +112,13 @@
 - 📌 zustand v4 → v5（latest）
 - 📌 settings 立即持久化；souls/chat 留 M2 接 IndexedDB
 
-**已知偏差**（待 Sprint 空闲时统一更新 Tech Design §3.2）：
-- ⚠️ `react-router-dom` Tech Design 写 `^6.20.0`，实际 `^7.18.2`
-- ⚠️ `zustand` Tech Design 写 `^4.5.0`，实际 `^5.x`
+**已知偏差**（⚠️ Sprint #1 实施后自我修正）：
+- M1-002 的 v6→v7 与 M1-003 的 v4→v5 偏差，原 dev-log 表述为「Tech Design §3.2 写了 X 版本号」—— 这部分失实
+- **实际情况**：Tech Design 6 个 ADR 均未写具体版本号（只列了依赖类型），所以无版本号需同步
+- **遗留改进**：Tech Design §3 未来可加一个"实际选用版本清单"小节，把 Sprint #1 用到的版本沉淀下来，避免每次靠记忆
+- **决策**：不在 Sprint #1 收官时硬塞这个清单（避免熵增）；下一 Sprint 开始时若需要再补
+
+Sprint #1 → Sprint #2 衔接时，已由 zustand `persist` 中间件保证 LocalStorage 兼容性，**无破坏性变更**。
 
 ---
 

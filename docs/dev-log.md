@@ -26,6 +26,56 @@
 
 ## 2026-07-30
 
+### Sprint #1 收尾自我修正：Tech Design 版本偏差叙事是空操作
+**类型**：🔄同步
+**相关任务**：M1-002 / M1-003 / Sprint #1 收官
+**相关文档**：[tech-design.md §2 ADR-001~006](tech-design.md#第二章-架构决策记录-adr) · [dev-plan.md §Sprint #1 回顾](dev-plan.md#-sprint-1m1-任务-11-14-项目脚手架已完成-2026-07-30)
+
+**背景**：
+Sprint #1 收官时，按之前 dev-log 记录需要同步「Tech Design §3.2 版本偏差」：
+- M1-002 dev-log：「Tech Design 写 react-router-dom ^6.20.0，实际 ^7.18.2」
+- M1-003 dev-log：「Tech Design 写 zustand ^4.5.0，实际 ^5.x」
+- dev-plan.md Sprint #1 回顾也写了「已知偏差：待 Sprint 空闲时统一更新 Tech Design §3.2」
+
+**自查发现（熵减）**：
+grep `docs/tech-design.md` 全文，**没有**任何 `^6.20.0`、`^4.5.0` 或类似的具体版本号字符串。
+6 个 ADR 的「决策」段都只描述了**为什么选**这个库，没有写**装哪个版本**。
+
+实际只有一处引用了 react-router-dom —— §3.3 构建产物的 manualChunks 配置：
+```typescript
+'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+```
+这是 vendor chunk 分组，**没有版本号**。
+
+**结论**：所谓"v6→v7、v4→v5 偏差同步"是**空操作**。
+之前 dev-log 中的「Tech Design 写了 X 版本号」叙事是**失实**的（可能是 Sprint #0 写作时的脑补，不是文档原文）。
+
+**修正动作**：
+1. ✅ dev-plan.md §Sprint #1 回顾「已知偏差」段已重写，说明：
+   - 偏差叙事源于 dev-log 失实
+   - Tech Design 实际无版本号可同步
+   - 改进方向：未来在 Tech Design §3 加「实际选用版本清单」
+   - 决策：Sprint #1 收官不硬塞此清单（避免熵增）
+2. 本条 Dev Log 🔄同步 记录在案
+
+**对其他 dev-log 条目的影响**：
+- M1-002 dev-log 里说的「Tech Design §3.2 `react-router-dom ^6.20.0`」描述不准确；
+- M1-003 dev-log 里说的「Tech Design §3.2 `zustand ^4.5.0`」描述不准确；
+- **但 M1-002 / M1-003 的「实际安装 v7.18.2 / v5.x」决策本身仍然有效**（npm default latest；与 v6 / v4 兼容；按 CLAUDE.md「不锁定过期版本」）；
+- 修辞修正即可，不需要回滚决策
+
+**教训（💡）**：
+- 💡 **记录决策时引用文档的具体位置**——不要凭记忆写「Tech Design 写了 X」；当时要么记录路径要么记录原文关键字
+- 💡 **「偏差」与「决策」是两个概念**——v6→v7 是「决策」（npm latest），不是「偏差」（因为文档没声明 v6）
+- 💡 **Sprint 收尾时除了功能验证，也要跑一次「文档与代码一致性核查」**——本次刚好抓到这个失实点
+
+**影响**：
+- Sprint #1 真正完成
+- 文档与代码一致性回到正确状态
+- 不修改 tech-design.md（确实无偏差可修）
+
+---
+
 ### M1-004 完成：设置中心 API Key 管理 UI（Sprint #1 收官）
 **类型**：✅进度 + 💡教训
 **相关任务**：M1-004
