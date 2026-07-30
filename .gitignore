@@ -13,3 +13,9 @@ dist-ssr
 # OS
 .DS_Store
 Thumbs.db
+
+# E2E test artifacts（每次跑都会重新生成）
+e2e/screenshots/
+e2e/test-results/
+e2e/playwright-report/
+playwright/.cache/

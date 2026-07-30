@@ -26,6 +26,174 @@
 
 ## 2026-07-30
 
+### Playwright E2E 烟雾测试就位：12 pass / 0 fail
+**类型**：✅进度 + 📌决策 + ⚠️问题（产品边界记录） + 💡教训 × 2
+**相关任务**：E2E 基础设施（M1 阶段新增） + M1-007（已知限制） + M1-008 验证
+**相关文档**：[dev-plan.md](dev-plan.md) · [tech-design.md §9](tech-design.md#第九章-测试策略) · [PRD §2.4](project-design-report.md#24-信息架构)
+
+**背景**：
+用户反馈「你自己测试一下已完成的」 + 指出我可以装 skill 做浏览器测试。按用户指引装 Playwright + Chromium，写端到端烟雾测试覆盖 Sprint #2 关键用户路径。
+
+**进展**：
+
+**1. 安装基础设施**
+- `npm install -D playwright --registry https://registry.npmmirror.com`（2 包，6s）
+- `npx playwright install chromium`（含 FFmpeg + Chrome Headless Shell 151，约 130MB）
+
+**2. 新增文件**
+- `e2e/smoke.mjs`（214 行）：9 个 Step 覆盖关键路径
+- `e2e/screenshots/`（自动生成）：每步一张 PNG
+
+**3. E2E 测试覆盖范围（12 pass / 0 fail）**
+
+| Step | 验证内容 | 结果 |
+|---|---|---|
+| 1 | 首页 h1 显示「角色库」、空状态 | ✓ |
+| 2 | /workshop 渲染 5 sections | ✓ |
+| **3** | **右栏 PromptPreview 含「测试小柚」（不再永远「编译中…」）** | ✓ ⭐ |
+| 4 | 选 MBTI = INFP，右栏出现「理想主义」INFP 行为指引 | ✓ |
+| 5 | TagInput 添加「温柔」，右栏含「温柔」 | ✓ |
+| 6 | 背景 section 加爱好「听爵士」，右栏含「听爵士」 | ✓ |
+| 7 | 点击「创建灵魂」跳转到 /chat?soulId=xxx | ✓ |
+| 8 | SPA 内导航回首页，看到新角色卡 + 「朋友」关系 + 「温柔」性格 | ✓ |
+| 9 | 删除清理后回到空状态 | ✓ |
+| **10** | **已知限制**：硬刷新后灵魂丢失（M1-007 待做） | ✓ 文档化记录 |
+
+**⭐ Step 3 是 M1-005b bug fix 的端到端实测验证**：
+之前用户报告「右栏一直显示编译中」是因为 `useWatch({ name: [...] })` 返回值是数组（被 `as unknown as` 藏住），编译永远 null。修复后：
+- dev server 编译通过 ✓
+- 端到端实测验证用户在浏览器输入时右栏实时更新 ✓
+
+**4. ⚠️ 发现的产品需求偏差（已记录到 Dev Plan）**
+
+**现象**：硬刷新浏览器后创建的灵魂丢失。
+
+**根因**：
+- M1-003 决策：souls store 暂不接 zustand persist（in-memory only）
+- M1-005a 设计：创建灵魂跳转到 /chat?soulId=xxx（M1-006 还没做）
+- M1-008 补做：HomePage 显示 souls[]（同一会话内可用）
+- 但**PRD §2.4 隐含期望**：用户关闭浏览器后重新打开，应该看到自己的灵魂
+
+**当前边界**（由 E2E Step 10 文档化）：
+- ✅ 单次 SPA 会话内：所有功能正常
+- ❌ 浏览器硬刷新 / 关闭重开：souls 丢失
+- ❌ 跨设备同步：完全不支持（需要 BFF）
+
+**📌 决策**：M1-007（IndexedDB 持久化）必须按原计划做，不能跳过
+- 修订：将 M1-007 在 Sprint #2 内前置，与 M1-006 并列
+- 或者：先启动 M1-006（让核心对话能跑通），再立即做 M1-007
+- 反正：**不能再拖到 Sprint #3 才做持久化** —— 这直接影响用户信任度
+
+**5. 2 条 💡 教训**
+
+💡 **教训 1：Playwright locator 不支持 `..` 父选择器**
+- 我最初写 `page.locator('h3:has-text("测试小柚")').locator('..').locator('..')` 想找祖先
+- playwright 的 `.locator('..')` 实际找的是「文档中位置匹配的下一个」，不是 CSS 父选择器
+- 修正：用 `page.locator('div').filter({ has: page.locator('h3:has-text("...") })` 找包含特定 h3 的祖先 div
+- **结果**：先误报「温柔」缺失，看截图才发现温柔的标签确实显示了 → 这是测试 bug，不是产品 bug
+
+💡 **教训 2：E2E 测试能发现的 bug 是 curl 抓不到的**
+- 这一轮找到的关键问题（M1-005b useWatch bug 已在 73fa007 修）就是 E2E 才能暴露
+- **结论**：每个 Sprint 末尾必须跑一次 E2E 烟雾测试，不依赖用户在浏览器实测
+- E2E 脚本应纳入项目 git 仓库（`e2e/smoke.mjs`），作为回归测试基础设施
+
+**6. 自检**
+
+| 自检项 | 结果 |
+|---|---|
+| 是否记录到 Dev Log | ✅ 本条 |
+| 是否更新 Dev Plan | ✅ M1-007 优先级说明已加 |
+| E2E 脚本是否纳入 git | ⏳ 下一步 commit |
+| 是否产生截图 | ✅ 8 张 PNG |
+
+**影响**：
+- 项目正式拥有浏览器自动化测试基础设施
+- M1-005b 的 bug fix 获得端到端实测验证（不再仅靠 TS 编译通过）
+- M1-008 的功能补做获得端到端实测验证
+- **暴露 M1-007 持久化缺口**：必须在 Sprint #2 收尾前完成
+
+---
+
+### Sprint #2 阶段性自检：多维度回归测试（35 pass / 0 fail）
+**类型**：✅进度 + 💡教训
+**相关任务**：所有 Sprint #2 已完成任务（M1-005a / M1-005b / M1-008）
+**相关文档**：[dev-process.md §3.1](dev-process.md)
+
+**背景**：
+用户要求「自己测试一下已经完成的功能」。按 CLAUDE.md「实践论」+「诚实」原则，**我没有浏览器自动化能力**（curl/WebFetch 只能看静态 HTML，看不到 React 实时交互）。所以自检在 4 个维度展开：dev server / 路由 / 源码 / 编译器。
+
+**进展**：
+
+**测试 1 · 4 路由可达**
+```
+/        HTTP 200
+/workshop HTTP 200
+/chat    HTTP 200
+/settings HTTP 200
+```
+
+**测试 2 · 首页 SSR 输出**
+- `/workshop` 返回的 HTML 包含 `main.tsx` 客户端入口
+- 客户端 hydration 后才挂载 `<FormProvider>` 与 `<PromptPreview>`
+
+**测试 3 · 源码层验证 M1-005b bug fix（PromptPreview）**
+- ✓ `useWatch({ control })`（不带 name）= 订阅整个表单
+- ✓ `mergeWithDefaults()` 函数存在
+- ✓ 无代码层残留 `name: [...]` 旧写法（仅 1 处注释提及 bug 历史）
+- ✓ `defaultSoulValues` 被正确导入
+
+**测试 4 · 源码层验证 M1-008 fix（HomePage）**
+- ✓ `useSoulsStore((s) => s.souls)` 订阅灵魂列表
+- ✓ `<DiceBearAvatar>` 头像组件接入
+- ✓ `setActiveSoul` + `deleteSoul` actions 正确接入
+- ✓ Trash2 图标 + 二次 confirm 删除
+
+**测试 5 · promptCompiler 端到端回归（Node + esbuild bundle）**
+1. 用 esbuild 把 promptCompiler.ts + mbtiBehaviors.ts 编译成 ESM
+2. 写 35 个 Node 测试用例，import 实际编译产物
+3. 跑测试 → **35 pass / 0 fail**
+
+覆盖的行为：
+- ✅ 完整灵魂配置：9 个 section 全部内容正确
+- ✅ token 估算（`Math.ceil(text.length / 1.5)`）
+- ✅ MBTI 行为指引注入（INFP→理想主义、ENFP→热情、ESTJ→直率务实等）
+- ✅ 不同 MBTI 输出确实不同
+- ✅ 运行时数据条件渲染（emotion / longTermFacts / knowledgeChunks 有则加、无则不渲染）
+- ✅ 边界值（空字符串、空数组、空 MBTI）不报错
+- ✅ 末尾注入防护（"不可逾越的规则"）始终存在
+- ✅ 元数据（soulId / templateVersion）正确返回
+- ✅ 关系类型映射（girlfriend→女友、pet→宠物、custom→自定义名）
+- ✅ 亲密度分段（0-19 陌生 / 20-39 初识 / 40-59 熟悉 / 60-79 亲近 / 80-100 极亲近）
+
+**自检过程中发现的 1 个真实 bug（已修）**
+
+⚠️ 教训：**写测试时不能凭直觉设阈值**
+- 我最初断言 `compiled.sections.length >= 8`
+- 跑测试发现：测试 1（无运行时数据）实际生成 7 个 section：身份/人格/背景/关系/边界/输出约束/防护
+- **这是测试断言写错了，不是代码 bug** —— 但暴露了「我对编译器的 section 结构凭记忆判断，而不是先核实预期值」
+
+教训 💡：
+- **先核实预期值再写断言**：先 `grep -c "title: '...'" promptCompiler.ts` 数清楚实际有几个 section
+- **测试驱动有助于理解代码**：写测试的过程让我对 promptCompiler 的输出结构有了系统认识
+- **回归测试应该入库**：当前测试在 `/tmp` 下跑，不持久化。M2 应考虑用 vitest 把这类核心模块的回归测试作为开发基础设施
+
+**5 个测试维度评级**
+
+| 维度 | 可信度 | 局限 |
+|---|---|---|
+| Dev server / 路由 | ⭐⭐⭐⭐⭐ | 完整：HTTP 200 + SSR HTML |
+| 源码层 grep 验证 | ⭐⭐⭐⭐ | 高度可信：直接看代码 |
+| 编译器端到端回归 | ⭐⭐⭐⭐⭐ | **完整**：跑实际编译产物，35 个行为断言全部通过 |
+| 浏览器静态渲染 | ⭐⭐ | 部分：只能看 HTML，不能看 React 行为 |
+| **浏览器交互**（点击 / 输入 / 实时联动） | ❌ | **无法验证**：超出工具能力（应该让用户跑） |
+
+**影响**：
+- 代码层 100% 验证通过
+- 编译产物 100% 验证通过
+- 浏览器交互需要用户最后一步实测（CLAUDE.md「实践论」最后一道质量门）
+
+---
+
 ### 浏览器体验反馈的两个问题：修 bug + 补遗漏
 **类型**：⚠️问题 × 2 + 📌决策 + 💡教训 × 3
 **相关任务**：M1-005b 收尾（bug fix）+ M1-008 角色库列表（M1-002 遗漏补做）

@@ -134,9 +134,15 @@ Sprint #1 → Sprint #2 衔接时，已由 zustand `persist` 中间件保证 Loc
 | M1-005b | Prompt 编译 + 预览（右栏实时编译） | ✅ | 3h | typecheck 0 error；4 路由 200；5 文件 Vite 编译成功；左表单 + 右预览实时同步；末尾注入防护 | 见 PRD §4.1.2 / Tech Design §6.1；详情见 Dev Log 2026-07-30 M1-005b 完成；决策：MBTI 独立文件 + 注入防护放末尾 + useSoulEditor hook 抽离；bug fix：详见 M1-008 记录 |
 | M1-008 | **角色库列表**（M1-002 遗漏补做：souls[] 列表 + 进入聊天 + 删除） | ✅ | 1h | typecheck 0 error；HomePage 接 useSoulsStore；DiceBear 头像 + 关系标签 + 性格关键词 | 见 PRD §2.2 F-005 / §2.4；详情见 Dev Log 2026-07-30 浏览器反馈 bug 修复条目；教训：交付 P0 要有 check list / Sprint 收尾需浏览器实测 |
 | M1-006 | 单角色文本对话（Vercel AI SDK + 流式输出） | ⚪ | 4h | 真实 LLM 调用；流式回复；Provider/Model 选择 | 见 PRD §4.3 / Tech Design §4.2 |
-| M1-007 | 对话历史持久化（IndexedDB） | ⚪ | 3h | 刷新后历史仍在；按 soulId 查询 | 见 Tech Design §5.1 / PRD §2.4 |
+| M1-007 | **对话历史 + 角色数据持久化**（IndexedDB） | ⚪ ↑优先级 | 3h | 刷新后历史仍在；**角色跨会话保留** | 见 Tech Design §5.1 / PRD §2.4 / Dev Log 2026-07-30「E2E 实测」记录的产品边界问题 |
 
 **Sprint 进度**：3/4 完成（75%）
+
+**⚠️ Sprint #2 已知产品边界**（E2E 实测发现）：
+- ✅ 单次 SPA 会话内：所有功能正常
+- ❌ 浏览器硬刷新 / 关闭重开：souls/chat 数据丢失（in-memory）
+- ❌ 跨设备同步：完全不支持（需 BFF）
+- **结论**：M1-007 必须在本 Sprint 内完成，否则交付物不符合 PRD §2.4 用户预期
 
 ---## 四、附录：任务状态说明
 
