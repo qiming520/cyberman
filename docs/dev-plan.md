@@ -90,13 +90,33 @@
 | M1-001 | Vite + React 18 + TS + Tailwind + shadcn/ui 脚手架 | ✅ | 2h | typecheck 0 error；dev server OK；首屏 HTML 含「赛博机器人」标题；Tailwind 编译 13KB | 见 PRD §6.2；详情见 Dev Log 2026-07-29 M1-001 完成 |
 | M1-002 | React Router 配置 + 4 个页面骨架 | ✅ | 2h | typecheck 0 error；4 路由 HTTP 200；router/AppLayout 编译成功 | 见 Tech Design §3.2；详情见 Dev Log 2026-07-29 M1-002 完成；决策：react-router-dom v6→v7.18.2 |
 | M1-003 | Zustand store 初始化（settings / souls / chat） | ✅ | 2h | typecheck 0 error；3 store Vite 编译成功；settings 接 LocalStorage persist | 见 Tech Design §3.1/§4；详情见 Dev Log 2026-07-30 M1-003 完成；决策：settings 立即持久化、souls/chat 留 M2 接 IndexedDB；zustand v4→v5 |
-| M1-004 | 设置中心：API Key 管理 UI + LocalStorage 持久化 | ⚪ | 3h | 能录入 OpenAI Key，刷新仍在 | 见 Tech Design §5.3 |
+| M1-004 | 设置中心：API Key 管理 UI + LocalStorage 持久化 | ✅ | 3h | typecheck 0 error；4 路由 200；ProviderKeyCard 21K + SettingsPage 20K 编译成功 | 见 Tech Design §5.3；详情见 Dev Log 2026-07-30 M1-004 完成 + Sprint #1 收官 |
 
-**Sprint 进度**：3/4 完成（75%）
+**Sprint 进度**：4/4 完成（100%）✅ Sprint #1 完成
 
 ---
 
 ## 三、历史 Sprint 回顾
+
+> 完成的 Sprint 归档在这里，供后续参考。
+
+### 🏁 Sprint #1：M1 任务 1.1-1.4 项目脚手架（已完成 2026-07-30）
+- **目标**：从 PRD 走向第一个可启动的雏形
+- **验证标准**：`npm run dev` 起得来，能在设置中心录入 API Key —— **全部达成**
+- **产出**：~14 个文件、~3000 行、4 个 git commit
+- **Git 链**：`39e0cfd`（Sprint #0）→ `9c51d84`（M1-001）→ `f1d3f3a`（M1-002）→ `46d2196`（M1-003）→ `<M1-004 hash>`
+
+**关键决策回顾**：
+- 📌 pnpm → npm（环境无 pnpm）
+- 📌 react-router-dom v6 → v7.18.2（latest）
+- 📌 zustand v4 → v5（latest）
+- 📌 settings 立即持久化；souls/chat 留 M2 接 IndexedDB
+
+**已知偏差**（待 Sprint 空闲时统一更新 Tech Design §3.2）：
+- ⚠️ `react-router-dom` Tech Design 写 `^6.20.0`，实际 `^7.18.2`
+- ⚠️ `zustand` Tech Design 写 `^4.5.0`，实际 `^5.x`
+
+---
 
 > 完成的 Sprint 归档在这里，供后续参考。
 

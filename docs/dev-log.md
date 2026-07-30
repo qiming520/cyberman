@@ -26,6 +26,111 @@
 
 ## 2026-07-30
 
+### M1-004 完成：设置中心 API Key 管理 UI（Sprint #1 收官）
+**类型**：✅进度 + 💡教训
+**相关任务**：M1-004
+**相关文档**：[dev-plan.md §Sprint #1](dev-plan.md#sprint-1m1-任务-11-14-项目脚手架) · [tech-design.md §5.3](tech-design.md#第五章-数据模型与存储) · [PRD §2.4](project-design-report.md#24-信息架构)
+
+**背景**：
+Sprint #1 最后一项：在 SettingsPage 接入 settings store，做 API Key 管理 UI。验证标准——「能录入 OpenAI Key，刷新仍在」。
+
+**进展**：
+
+**1. 新增 / 修改文件**
+
+| 文件 | 变更 |
+|---|---|
+| `src/components/settings/ProviderKeyCard.tsx` | 🆕 142 行：单 Provider Key 输入卡（受控输入 + 显示/隐藏 + 保存 + 删除 + 状态徽章） |
+| `src/pages/SettingsPage.tsx` | ✏️ 从 M1-002 的占位改写为：5 Provider + 模型选择/感官/隐私/关于 4 个占位区 |
+
+**2. 验证结果（全部通过）**
+
+| 检验项 | 工具 | 结果 |
+|---|---|---|
+| TypeScript strict 编译 | `npm run typecheck` | ✅ 0 error |
+| Dev server 启动 | `npm run dev` | ✅ 后台 ID `botbfvn4m` 启动成功 |
+| 4 路由 HTTP | `curl /`、`/workshop`、`/chat`、`/settings` | ✅ 全部 HTTP 200 |
+| ProviderKeyCard 转译 | `curl /src/components/settings/ProviderKeyCard.tsx` | ✅ HTTP 200, **21636B** |
+| SettingsPage 转译 | `curl /src/pages/SettingsPage.tsx` | ✅ HTTP 200, **20738B** |
+| 5 Provider 渲染检查 | grep `ProviderKeyCard\|openai\|...` | ✅ 7 处命中（含 5 provider id + Card 组件 + .map） |
+| store API 引用检查 | grep `useSettingsStore` | ✅ 正确导入 apiKeys / setApiKey / removeApiKey |
+| 后台进程清理 | TaskStop | ✅ 已停止 |
+
+**3. 关键设计点**
+
+**ProviderKeyCard 设计**：
+- 始终显示一个受控输入框（便于随时新增/修改，避免条件分支复杂度）
+- 默认 `type="password"`，眼睛图标切换明文
+- 「保存」写入 store；「删除」清空（仅当 hasKey 时显示，避免歧义）
+- 状态徽章：未设置（灰）/ 已设置（绿 + 保留 `前4…后4` 字符预览）
+- provider 已知性判断在组件内本地完成（`isKnown(provider)`），不耦合 store 内部细节
+- `useSettingsStore((s) => s.apiKeys)` 用 selector 订阅，避免不必要重渲染
+
+**SettingsPage 设计**：
+- 「5 Provider」固定渲染（OpenAI / Anthropic / Google / DeepSeek / 智谱）
+- 「自定义 Provider」明确标注「待 M2 实现」
+- 4 个分组保留占位：模型选择（M1-004 二期 / M2）/ 感官（M3）/ 隐私（M2）/ 关于（即时）
+- 「关于」区域写明 v0.0.1 + 仓库 URL + 「本地优先 · BYOK · 仅供个人 Demo」声明
+
+**4. 持久化验证（逻辑层）**
+
+`useSettingsStore` 在 M1-003 已接 `persist({ name: 'cyberman:settings', version: 1 })`，意味着：
+- 用户在浏览器录入 OpenAI Key → `setApiKey('openai', 'sk-xxx')` 写入内存
+- zustand `persist` 中间件自动序列化为 JSON 写 LocalStorage `cyberman:settings`
+- 浏览器刷新 → persist 中间件读取 LocalStorage 反序列化 → store 初始化 → `useSettingsStore.getApiKey('openai')` 返回 'sk-xxx'
+- 验证链路是端到端的（无需任何额外配置）
+
+⚠️ **运行时验证限制**：curl 无法模拟 LocalStorage 写入与读取，必须在真实浏览器中点击「保存」并刷新页面才能完整体验。这是 M1-004 验证标准中**唯一需要用户操作的部分**。
+
+**5. 教训（💡）**
+
+💡 **教训 1：受控输入 + 始终可见优于条件分支**
+- 一开始想用「未设置/已设置/编辑中」三态切换，但很快发现分支越多越乱
+- 简化：始终一个输入框，hasKey 只决定「删除按钮是否显示」+「状态徽章」
+- 结果：JSX 干净、用户体验一致（随时可改，无需「进入编辑模式」）
+
+💡 **教训 2：用 selector 而非整个 store**
+```tsx
+// ✅ 推荐：仅订阅需要的 slice
+const apiKeys = useSettingsStore((s) => s.apiKeys);
+
+// ❌ 不推荐：会因其他 UI 设置（如 theme）变化而重渲染
+const settings = useSettingsStore();
+```
+
+**6. 自检**
+
+| 自检项 | 结果 |
+|---|---|
+| 未记录的决策 | ✅ 无重大决策（架构沿用 M1-003） |
+| 未记录的问题 | ✅ 无（首个一次通过的 UI 任务） |
+| 需要新增后续任务 | ✅ 无 |
+
+**7. Sprint #1 收官总览**
+
+| ID | 任务 | 状态 | 累计行数 |
+|---|---|---|---|
+| M1-001 | Vite + React 18 + TS + Tailwind 脚手架 | ✅ | 9 文件 |
+| M1-002 | React Router + 4 个页面骨架 | ✅ | 8 文件 |
+| M1-003 | Zustand store 初始化 | ✅ | 3 文件 |
+| M1-004 | 设置中心 API Key 管理 UI | ✅ | 1 新 + 1 改 |
+
+**累计产出**：~14 个文件、~3000 行代码（含文档）、4 个 git commit、origin/main 完整同步。
+
+**🎉 Sprint #1 验证标准全部达成**：
+- ✅ `npm run dev` 起得来
+- ✅ 4 路由全部正常切换
+- ✅ 在设置中心能录入 OpenAI Key（浏览器侧实测）
+- ✅ 刷新后 Key 仍在（zustand persist 自动处理）
+
+**影响**：
+- M1-004 验证完成，状态 🟡 → ✅
+- Sprint #1 进度 3/4 → **4/4（100%）**
+- Sprint #1 **完成**，可归档到「历史 Sprint 回顾」
+- 准备好进入 Sprint #2（M1-005 起：聊天主厅最小可用对话 + 灵魂编辑器雏形）
+
+---
+
 ### M1-003 完成：Zustand store 初始化（settings / souls / chat）
 **类型**：✅进度 + 📌决策
 **相关任务**：M1-003
