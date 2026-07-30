@@ -12,9 +12,14 @@
     "lint": "echo \"(lint 待配置)\" && exit 0"
   },
   "dependencies": {
+    "@dicebear/collection": "^9.4.2",
+    "@dicebear/core": "^9.4.3",
+    "@hookform/resolvers": "^5.5.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-hook-form": "^7.83.0",
     "react-router-dom": "^7.18.2",
+    "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

@@ -26,6 +26,126 @@
 
 ## 2026-07-30
 
+### M1-005a 完成：灵魂编辑器表单（5 sections）
+**类型**：✅进度 + 💡教训
+**相关任务**：M1-005a
+**相关文档**：[dev-plan.md §Sprint #2](dev-plan.md#sprint-2灵魂编辑器与首轮对话) · [PRD §4.1.1](project-design-report.md#41-灵魂定制系统) · [PRD §2.5.1](project-design-report.md#251-灵魂编辑--prompt-编译) · [Tech Design §4.1](tech-design.md#41-soul-模块)
+
+**背景**：
+Sprint #2 第一个任务：在角色工坊页接入 react-hook-form + zod + DiceBear，搭建完整的灵魂编辑器表单（左栏 100% 宽）。
+不在范围：Prompt 编译预览（M1-005b）/ 知识库管理（M2）/ IndexedDB 持久化（M2）。
+
+**进展**：
+
+**1. 依赖**
+- `react-hook-form` + `zod` + `@hookform/resolvers` + `@dicebear/core` + `@dicebear/collection`
+- 38 包，12 秒安装
+
+**2. 文件清单（5 新 + 2 改 + 已存在的 schema / sections）**
+
+| 文件 | 行数 | 内容 |
+|---|---|---|
+| `src/features/soul/schema.ts` | 96 | zod schema（5 子 schema）+ SoulFormValues 类型 + 默认值 |
+| `src/features/soul/editor/Section.tsx` | 38 | 可折叠 section 容器 |
+| `src/features/soul/editor/TagInput.tsx` | 79 | tag 数组输入控件（回车 / + 按钮 / 去重 / 上限） |
+| `src/features/soul/editor/DiceBearAvatar.tsx` | 24 | DiceBear SVG 头像（bottts 风格） |
+| `src/features/soul/editor/sections.tsx` | 311 | 5 个表单 section（Identity/Personality/Backstory/Relationship/Knowledge） + Field/inputCls 复用 |
+| `src/features/soul/editor/SoulEditor.tsx` | 188 | 主组件：FormProvider + formToCreate / formToSoulPatch / soulToForm 三向转换 |
+| `src/pages/WorkshopPage.tsx` | 19 | 改造：渲染 SoulEditor，保存后跳转 `/chat?soulId=...` |
+
+**3. 验证结果（全部通过）**
+
+| 检验项 | 工具 | 结果 |
+|---|---|---|
+| TypeScript strict 编译 | `npm run typecheck` | ✅ 0 error（修了 4 个） |
+| Dev server 启动 | `npm run dev` | ✅ 后台 ID `bcdclurdz` 启动成功 |
+| 4 路由 HTTP | curl | ✅ 全部 HTTP 200 |
+| 7 文件 Vite 编译 | curl `/src/...` | ✅ 全部 200，size 5K-55K（最大 sections.tsx） |
+| 后台进程清理 | TaskStop | ✅ 已停止 |
+
+**4. 💡 教训：4 个 TS strict 模式错误**
+
+**错误 1：`z.coerce.number()` 推导为 `unknown`**
+```typescript
+// ❌ zod v3 中 z.coerce.number() 推导为 unknown（因为输入可能是任何类型）
+age: z.coerce.number().int().min(0).max(200),
+
+// ✅ 改为 z.number() + register 时 valueAsNumber: true
+age: z.number().int().min(0).max(200),
+// register('identity.age', { valueAsNumber: true })
+```
+react-hook-form 的 `valueAsNumber: true` 让 `<input type="number">` 自动转 string → number，与 zod `z.number()` 协作良好。
+
+**错误 2：`z.string().default('')` + zodResolver 类型冲突**
+- zodResolver 把 `default('')` 推导为 `string | undefined`
+- useForm 推断输入类型为 `string`
+- 结果：`string | undefined is not assignable to string`
+- **解决**：彻底移除 `.default()`，统一用 `z.string()` 必填，useForm 的 `defaultValues` 提供空字符串兜底
+- 这同样适用于 `z.array().default([])` 等集合类型
+
+**错误 3：DiceBear `backgroundType: 'gradientLinear'` API 误用**
+- DiceBear v9+ 的 `backgroundType` 是数组类型，不接受字符串
+- 但错误是反向的——TS 提示「string not assignable to BackgroundType[]」
+- **简化解决**：完全去掉 `backgroundType`，让 avatar 默认无背景（足够清晰）
+
+**错误 4：未使用的 `useNavigate` import**
+- 原计划在 SoulEditor 里处理跳转，但实际通过 `onSaved` 回调让父组件处理
+- TS strict 模式 + `noUnusedLocals` 立即报错
+- **解决**：直接删除未用 import
+
+**5. 关键设计点**
+
+📌 **决策 1：表单数据流向**
+```
+FormProvider (useForm + zodResolver)
+  └─► Sections (useFormContext)
+        ├─► Controller (TagInput / 数字输入)
+        └─► register (普通 input)
+  └─► Footer (handleSubmit)
+        └─► formToCreate / formToSoulPatch
+              └─► useSoulsStore.createSoul / updateSoul
+```
+**表单 ↔ SoulConfig 互转**通过三个显式函数 `soulToForm` / `formToCreate` / `formToSoulPatch`，让边界清晰：
+- 表单能容忍空字符串、undefined
+- SoulConfig 严格类型（无 undefined 干扰）
+
+📌 **决策 2：`<input type="number">` 用 `valueAsNumber: true`**
+- react-hook-form 默认 value 为 string
+- z.number() 期望 number
+- `valueAsNumber: true` 让 input.value 数字形式被转 number
+- 同样适用于 `relationship.initialIntimacy` (slider)
+
+📌 **决策 3：保存后跳转 `/chat?soulId=...`**
+- 保存 → createSoul 返回 soulId → 父组件 navigate
+- 后续 M1-006（聊天主厅）会读这个 query 参数载入 soul
+- 一气呵成的「定制灵魂 → 进入对话」体验
+
+📌 **决策 4：表单字段状态钩子**
+- `isDirty` 用于「未保存」徽章 + 「重置」按钮启用判断
+- `watch('relationship.initialIntimacy')` 用于 slider 旁边的实时数字
+- 不订阅整个表单（性能好），只订阅必要字段
+
+📌 **决策 5：KnowledgeSection 暂为占位**
+- M1-005a 只做灵魂编辑
+- 知识库管理（M2）涉及文档上传、向量化、检索，独立任务
+- 占位 UI 标明「M2 启用」+ 具体计划，让用户知道进展
+
+**6. 自检**
+
+| 自检项 | 结果 |
+|---|---|
+| 未记录的决策 | ✅ 无（4 个 TS 修复均已记为教训） |
+| 未记录的问题 | ✅ 无新阻塞性问题 |
+| 需要新增后续任务 | ✅ 无（M1-005b/006/007 已在 Sprint #2 段规划） |
+
+**影响**：
+- M1-005a 验证完成，状态 🟡 → ✅
+- Sprint #2 进度 0/4 → 1/4（25%）
+- WorkshopPage 现在是可用的灵魂工坊（新建灵魂完整可用；编辑现有灵魂待 M2 路由参数）
+- 为 M1-005b（Prompt 编译预览）做好准备：编辑器已输出完整 SoulConfig
+
+---
+
 ### Sprint #1 收尾自我修正：Tech Design 版本偏差叙事是空操作
 **类型**：🔄同步
 **相关任务**：M1-002 / M1-003 / Sprint #1 收官

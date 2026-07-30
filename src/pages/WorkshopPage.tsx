@@ -1,12 +1,15 @@
 /**
- * 角色工坊（M1-002 占位）
+ * 角色工坊页（M1-005a 启用）
  *
- * PRD §2.4 角色工坊 = 灵魂编辑器 + Prompt 预览 + 测试对话
- * M1-002 阶段：仅占位 UI；M2-001 之后填充
+ * 本期（M1-005a）：新增灵魂（编辑器表单占 100% 宽；M1-005b 加右栏 Prompt 预览）
+ * 后续（M2 路由参数）：支持通过 URL `/workshop?soul=xxx` 编辑现有灵魂
  */
-import { Hammer } from 'lucide-react';
+import { SoulEditor } from '@/features/soul/editor/SoulEditor';
+import { useNavigate } from 'react-router-dom';
 
 export function WorkshopPage() {
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-6">
       <header>
@@ -14,13 +17,7 @@ export function WorkshopPage() {
         <p className="text-sm text-slate-400 mt-1">配置灵魂的每一个维度</p>
       </header>
 
-      <div className="border border-dashed border-slate-800 rounded-lg p-12 text-center bg-slate-900/40">
-        <Hammer className="mx-auto mb-3 text-slate-600" size={40} />
-        <p className="text-slate-400">灵魂编辑器（待 M2-001 启用）</p>
-        <p className="text-xs text-slate-600 mt-2 font-mono">
-          身份 / 人格 / 背景 / 关系 / 知识
-        </p>
-      </div>
+      <SoulEditor onSaved={(soulId) => navigate(`/chat?soulId=${soulId}`)} />
     </div>
   );
 }

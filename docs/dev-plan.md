@@ -122,13 +122,22 @@ Sprint #1 → Sprint #2 衔接时，已由 zustand `persist` 中间件保证 Loc
 
 ---
 
-> 完成的 Sprint 归档在这里，供后续参考。
+### Sprint #2：灵魂编辑器与首轮对话
+- **周期**：2026-07-30 起
+- **目标**：从「能录入 Key」走向「能跑通一个灵魂的最小对话闭环」
+- **验证标准**：新建一个灵魂 → 配置灵魂字段 → 在聊天主厅首次对话成功
+- **⚠️ 收尾要求**：每个任务结束后立即执行 [任务结束 checklist](dev-process.md#23-任务结束-checklist)
 
-（暂无）
+| ID | 任务 | 状态 | 工时 | 验证标准 | 备注 |
+|---|---|---|---|---|---|
+| M1-005a | 灵魂编辑器表单（5 sections：身份/人格/背景/关系/知识库占位） | ✅ | 4h | typecheck 0 error（修了 4 个）；4 路由 200；7 文件 Vite 编译成功；保存调用 useSoulsStore.createSoul | 见 PRD §4.1.1 / §2.5.1；详情见 Dev Log 2026-07-30 M1-005a 完成；教训：z.coerce / z.string().default / DiceBear API / 未用 import |
+| M1-005b | Prompt 编译 + 预览（右栏实时编译） | ⚪ | 3h | 编译输出与表单同步；展示 token 估算 | 见 PRD §4.1.2 / Tech Design §6.1 |
+| M1-006 | 单角色文本对话（Vercel AI SDK + 流式输出） | ⚪ | 4h | 真实 LLM 调用；流式回复；Provider/Model 选择 | 见 PRD §4.3 / Tech Design §4.2 |
+| M1-007 | 对话历史持久化（IndexedDB） | ⚪ | 3h | 刷新后历史仍在；按 soulId 查询 | 见 Tech Design §5.1 / PRD §2.4 |
 
----
+**Sprint 进度**：1/4 完成（25%）
 
-## 四、附录：任务状态说明
+---## 四、附录：任务状态说明
 
 | 状态 | 图标 | 含义 |
 |---|---|---|
