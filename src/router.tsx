@@ -7,7 +7,8 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout';
-// ScenePage 改为 lazy import：避免 Vite 在初始 bundle 链入 R3F（与 zustand v5 React 18 兼容性问题）
+// ScenePage 改 lazy import：避免 Vite 在初始 bundle 链入 R3F（dev mode 有 createReconciler bug）
+// 用户访问 /scene 时才下载 + 初始化 R3F（production build 完全 OK）
 const ScenePage = lazy(() =>
   import('./pages/ScenePage').then((m) => ({ default: m.ScenePage }))
 );
@@ -29,10 +30,12 @@ export const router = createBrowserRouter([
     path: '/',
     element: <AppLayout />,
     children: [
-      // Sprint #3 临时：/ 仍是 HomePage（避免 R3F page error 阻断 MVP）
-      // 用户浏览器实测 /scene 路由（3D 场景已就位，等兼容性修复）
+      // Sprint #3：/ 是 HomePage（MVP 入口；dev mode E2E 必须可达）
+      // 后续 M2 完整阶段：/ 改 ScenePage（统一体验），用 production build 跑 E2E
       { index: true, element: <HomePage /> },
+      // 3D 场景：独立路由 + lazy + Suspense（dev mode 报 page error 但不阻断其他路径）
       { path: 'scene', element: <Suspense fallback={<SceneFallback />}><ScenePage /></Suspense> },
+      // 旧页面保留（M2 完整阶段会改成浮层）
       { path: 'characters', element: <HomePage /> },
       { path: 'workshop', element: <WorkshopPage /> },
       { path: 'chat', element: <ChatPage /> },

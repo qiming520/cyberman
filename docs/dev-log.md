@@ -26,6 +26,96 @@
 
 ## 2026-07-30
 
+### Sprint #3 收官：3D 渲染突破 + dev/prod 双轨 E2E 策略
+**类型**：✅进度（突破） + 📌决策（关键） + 💡教训 × 3
+**相关任务**：Sprint #3 M2-MVP
+**关联记录**：[本文件上一条「M2-MVP：3D 场景骨架」](dev-log.md)
+
+**背景**：
+上一条记录了 R3F 报 page error，截图证据显示 /scene 完全失败。当时推测是 headless chromium 限制，但**我自己测错方法**（用 E2E Step 11「路由可达」通过判定为成功，掩盖了 Canvas 实际未创建的事实）。
+
+**用户反馈**：「你自己不会实测吗」—— 触发自查。
+
+**📌 关键发现（图片证据驱动）**：
+
+| 测试方法 | 结果 | 含义 |
+|---|---|---|
+| dev mode 访问 /scene | ❌ Page error + Canvas 不存在 | dev mode 确实有 R3F bug |
+| **production build + preview** | ✅ **完美渲染**（紫色 capsule + 黄色 sphere + 阴影） | **真实用户体验无问题** |
+
+**截图证据**：`e2e/screenshots/production-3d-verified.png` 显示 3D 角色 + 顶栏 + 覆盖层 + 底部状态栏全部正确渲染。
+
+**根因分析**：
+- R3F v9.6.1 npm latest 要求 React 19（我装的是 React 18.3.1）→ 报 `createReconciler` 错误
+- 降级到 R3F v8.18.0 + drei v9.122.0（最后兼容 React 18 的版本）→ dev mode 仍报
+- **但 production build 完全正常** —— 是 Vite dev mode + R3F + React 18 的特定 bug，**不影响真实用户**
+
+**📌 决策：dev/prod 双轨 E2E 策略**
+
+| 范围 | 跑法 | 覆盖 |
+|---|---|---|
+| **MVP 流程** | dev mode（`npm run e2e`） | 13 步：home/workshop/chat/settings + IDB 持久化 |
+| **3D 渲染** | production build（`npm run e2e:prod`） | 3 步：Canvas 元素 + 尺寸 + 无 page error |
+
+理由：
+- dev mode 跑 MVP 流程快（无 build 步骤）；3D 路由用 lazy 隔离（不污染主 bundle）
+- production build 跑 3D 验证（不依赖 Vite dev）；模拟真实用户体验
+- 总计 16 个真实 E2E 覆盖，dev + prod 互补
+
+**3 个💡 教训（每个都来自此次错误）**
+
+💡 **教训 1：E2E「路由可达」检查有盲区**
+- 我之前的 Step 11 只检查「/scene 路由能渲染 React 节点」就报 pass
+- 但 React Router ErrorBoundary 渲染错误页也算「路由可达」
+- **修正**：加具体元素断言（Canvas 元素、尺寸、无 page error）
+
+💡 **教训 2：dev mode ≠ production**
+- 同一份代码在 dev 和 prod 行为可能不同（Vite HMR 注入、source maps、HMR 边界）
+- 渲染/性能类问题**必须用 production build 验证**
+- **修正**：Sprint 收尾跑 E2E 时，明确区分 dev mode（开发速度）和 production（真实体验）
+
+💡 **教训 3：用户反馈要正面接受**
+- 「你自己不会实测吗」—— 用户的批评直指核心：自动化工具齐全但我自己没用
+- 即使有 Playwright，能跑测试 ≠ 看了截图
+- **修正**：每个 Sprint 收尾**必须看截图**确认视觉效果，不只看 console 输出
+
+**关键路径调整**：
+
+1. **R3F 版本降级**（commit 后续会包含）
+   - `@react-three/fiber@^8`（v8.18.0，最后兼容 React 18）
+   - `@react-three/drei@^9`（v9.122.0，最后兼容 React 18）
+   - 之前 v9 是 npm latest 默认装，但 v9 要 React 19
+
+2. **router lazy 隔离**
+   - `ScenePage` 用 `React.lazy` + `Suspense` 包裹
+   - 避免 / 等主路径加载 R3F 模块（dev mode 也会触发错误）
+   - 访问 /scene 时才下载 + 初始化 R3F
+
+3. **main.tsx 恢复 StrictMode**
+   - 之前误判 StrictMode + R3F 双调用导致错误
+   - 实际 production 验证显示 StrictMode 无关
+   - 已恢复 StrictMode（React 18 最佳实践）
+
+**最终交付**：
+
+| 维度 | 状态 |
+|---|---|
+| dev mode `npm run e2e` | ✅ 13 pass / 0 fail（MVP 流程） |
+| production `npm run e2e:prod` | ✅ 3 pass / 0 fail（3D 渲染） |
+| **总计 16 个真实 E2E 覆盖** | ✅ |
+| production 截图证据 | ✅ `e2e/screenshots/production-3d-verified.png` |
+| 真实用户体验 | ✅ production build 完美 |
+
+**影响**：
+- Sprint #3 M2-MVP 完成（路由 + 代码 + 编译 + 渲染全部 OK）
+- 用户可以在 `npm run dev` 看到 MVP（13 步流程），`npm run build && npx vite preview` 看 3D
+- 后续 Sprint #4 方向明确：单页架构（/ 改 ScenePage + 浮层）+ 多角色 + 捏脸
+
+**关联任务**：Sprint #3 M2-MVP 收官
+**关联决策**：[产品方向转变](dev-log.md)（3D 沉浸式）
+
+---
+
 ### Sprint #3 M2-MVP：3D 场景骨架 + R3F headless 兼容性阻塞
 **类型**：✅进度（部分） + ⚠️问题（技术阻塞） + 📌决策（待用户实测）
 **相关任务**：Sprint #3 M2-MVP
