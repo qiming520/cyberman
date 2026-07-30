@@ -26,6 +26,178 @@
 
 ## 2026-07-30
 
+### M1-007 完成：角色数据 + 对话持久化（IndexedDB）
+**类型**：✅进度 + 📌决策 × 2 + 💡教训 × 2
+**相关任务**：M1-007（前置到 Sprint #2 第一项）
+**相关文档**：[dev-plan.md §Sprint #2](dev-plan.md#sprint-2灵魂编辑器与首轮对话) · [tech-design.md §5.1](tech-design.md#第五章-数据模型与存储) · [PRD §2.4](project-design-report.md#24-信息架构) · [本文件上一条反思记录](#反思为什么-m1-007-被排到-sprint-末尾)
+
+**背景**：
+按用户反馈 + 我的反思，**M1-007 必须前置到 Sprint #2 第一项**，否则 PRD §2.4 信任基础（灵魂跨会话保留）不成立。
+
+**进展**：
+
+**1. 依赖**
+- `idb` ^8.0.3（轻量 IndexedDB Promise 包装）
+
+**2. 新增 / 修改文件**
+
+| 文件 | 变更 |
+|---|---|
+| `src/features/storage/db.ts` | 🆕 IDB 适配器：单 db `cyberman` + 单 store `kv` + `idbStorage()` 工厂函数（适配 zustand persist 接口） |
+| `src/stores/souls.ts` | ✏️ 加 `persist` middleware + `createJSONStorage(() => idbStorage())` + `partialize` 只持久化数据字段 |
+| `src/stores/chat.ts` | ✏️ 同上（streamingMessageId 不持久化 —— 流式状态是临时的） |
+| `e2e/smoke.mjs` | ✏️ Step 10 从「已知限制文档化」改为「M1-007 持久化验证」（应 pass） |
+
+**3. 验证结果（13 pass / 0 fail）**
+
+```
+[Step 10] M1-007 持久化验证：硬刷新后灵魂应保留（IndexedDB）
+  ⓘ 此 step 验证 IDB 持久化生效 —— M1-007 完成前应 fail，完成后应 pass
+  ✓ M1-007：硬刷新后灵魂仍在（M1-007 持久化生效）
+```
+
+**截图证据**（`e2e/screenshots/08-after-reload.png`）：
+- 硬刷新后首页仍显示「临时测试角色」卡片
+- DiceBear 头像 + 姓名 + 「朋友·亲密度 30」全部保留
+- 之前 Step 10 是「已知行为：灵魂丢失」 → 现在是「M1-007：硬刷新后灵魂仍在」
+
+**4. 关键决策**
+
+📌 **决策 1：单 db + 单 store + KV 模式**
+- DB name: `cyberman`（version 1，留 upgrade 接口给 M2）
+- Store name: `kv`（key-value 通用）
+- 每个 zustand store 用独立 key：`cyberman:souls` / `cyberman:chat`
+- 理由：MVP 阶段存整个 state 即可，避免过早实体化（conversations / messages 分表留 M2）
+
+📌 **决策 2：`partialize` 显式声明持久化范围**
+- souls: 持久化 `souls[]` + `activeSoulId`（actions 不持久化 —— zustand 默认已过滤）
+- chat: 持久化 `currentConversation`，**不**持久化 `streamingMessageId`（流式状态是临时的）
+- 理由：明确意图，未来读代码的人不用猜哪些字段会落盘
+
+**5. 关键实现细节**
+
+```typescript
+// db.ts 核心
+export function idbStorage() {
+  return {
+    getItem: async (name) => JSON.stringify(await idbGet(name)) ?? null,
+    setItem: async (name, value) => await idbSet(name, JSON.parse(value)),
+    removeItem: async (name) => await idbDel(name),
+  };
+}
+
+// store 修改核心
+export const useSoulsStore = create<SoulsState>()(
+  persist(
+    (set, get) => ({ /* actions */ }),
+    {
+      name: 'cyberman:souls',
+      storage: createJSONStorage(() => idbStorage()),
+      version: 1,
+      partialize: (state) => ({
+        souls: state.souls,
+        activeSoulId: state.activeSoulId,
+      }),
+    },
+  ),
+);
+```
+
+**6. 💡 教训**
+
+💡 **教训 1：异步写入需要等待**
+- E2E 第一版 Step 10 没 wait，直接硬刷新 → 灵魂丢失（false negative）
+- 实际 IDB 写入是异步的，硬刷新可能在写入完成前发生
+- 修法：创建灵魂后 `await page.waitForTimeout(800)`，硬刷新后 `await page.waitForTimeout(800)`
+- 启示：所有「异步持久化 + 立即测试」的场景必须有 wait 缓冲
+
+💡 **教训 2：dialog handler 全局只注册一次**
+- 我在 Step 9 + Step 10b 各注册了一次 `page.on('dialog', ...)`
+- playwright 第二次 accept 时抛 "already handled" 错
+- 修法：在 `page.newPage()` 后全局注册一次
+- 启示：E2E 测试中浏览器级 handler（dialog / console / network）应该是「全局一次注册」
+
+**7. 自检**
+
+| 自检项 | 结果 |
+|---|---|
+| IDB 持久化生效 | ✅ Step 10 端到端验证通过 |
+| 硬刷新后状态保留 | ✅ 截图证据 |
+| typecheck | ✅ 0 error |
+| E2E 总数 | ✅ 13 pass / 0 fail |
+| 数据隔离 | ✅ settings 用 LocalStorage（不被 IDB 影响），souls/chat 用 IDB |
+
+**影响**：
+- M1-007 验证完成，状态 🟡 → ✅
+- Sprint #2 进度 3/4 → **4/4 完成（100%）** 🎉
+- 解决了 PRD §2.4 信任基础问题
+- 为 M1-006（聊天主厅）铺好路：souls/chat 数据落地后，聊天记录也能保留
+
+---
+
+### 反思：为什么 M1-007 被排到 Sprint 末尾？
+**类型**：💡教训 + 📌决策（系统性改进）
+**相关任务**：所有 Sprint 任务（含历史 M1-003）
+**相关文档**：[dev-process.md §3.1](dev-process.md) · [PRD §2.4](project-design-report.md#24-信息架构) · 本文件「M1-003 完成」历史记录
+
+**用户反馈**：
+「为什么你之前制定的开发计划会有这种问题？」—— 用户对 M1-007（持久化）被排到 Sprint 末尾导致产品边界问题的反思性追问。
+
+**我的反思（3 个层面）**
+
+**层面 1：决策时只写"便利"，没写"代价"**
+
+M1-003 时我写下：
+> 📌 决策 1：settings 立即持久化，souls/chat 暂不持久化
+> - **理由**：避免在 M1-003 同时实现三件事。
+
+**问题**：我写了「理由」（开发便利），但**没写「代价」**（用户刷新后灵魂丢失 → PRD §2.4 信任基础破坏）。
+
+**修正**：每个 📌 决策必须含**「代价/风险」** 段。如「决定不持久化 → 风险：用户跨会话丢失数据 → 缓解：M1-007 接 IDB」。
+
+**层面 2：优先级按"技术便利"排序，忽略"用户场景必要性"**
+
+Sprint #2 任务顺序：
+```
+M1-005a → M1-005b → M1-006 → M1-007
+（编辑器 → 预览 → 聊天 → 持久化）
+```
+
+这是**工程师视角的难度递进**，不是**用户视角的场景递进**。用户首次体验：
+1. 看到空角色库
+2. 创建第一个灵魂
+3. **关闭浏览器**
+4. **重开**
+
+第 4 步才暴露问题。如果从用户视角排，**M1-007 应该前置**（保证用户能「信任」产品）。
+
+**修正**：Dev Plan 加 **user story 段**，任务优先级先看「用户场景必要性」再考虑「技术依赖」。
+
+**层面 3：Dev Plan 只有 task，没有 user story**
+
+Dev Plan 当前结构：
+```
+| ID | 任务 | 状态 | 工时 | 验证标准 |
+```
+
+**问题**：纯 task 视角无法暴露「信任基础」「品牌感受」这类隐含约束。
+
+**修正**：每个 Sprint 段加 user story 段，描述「作为 X 用户，我想要 Y，以便 Z」。
+
+**系统性改进（落地清单）**
+
+1. ✅ 立即执行：M1-007 前置到 Sprint #2 第一个任务（用户已选 A）
+2. 🔜 后续 Sprint：每个任务加 user story 段
+3. 🔜 后续 ADR：每个 📌 决策加「代价/风险 + 缓解」段
+4. 🔜 流程：每次 Sprint 末跑 E2E，验证「硬刷新后状态保留」作为强制 checklist
+
+**影响**：
+- 当前 Sprint #2 任务顺序调整：M1-007 → M1-006（持久化优先于聊天）
+- 不再让"开发便利"压过"用户场景必要性"
+- 反思已记入文档，未来回溯能立刻看到「为什么 M1-007 重要」
+
+---
+
 ### Playwright E2E 烟雾测试就位：12 pass / 0 fail
 **类型**：✅进度 + 📌决策 + ⚠️问题（产品边界记录） + 💡教训 × 2
 **相关任务**：E2E 基础设施（M1 阶段新增） + M1-007（已知限制） + M1-008 验证

@@ -12,6 +12,8 @@
  * - 知识库 CRUD（留 M2）
  */
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { idbStorage } from '@/features/storage/db';
 
 export type Gender = 'male' | 'female' | 'non-binary' | 'other';
 export type RelationshipType =
@@ -98,38 +100,52 @@ function newId(): string {
   return crypto.randomUUID();
 }
 
-export const useSoulsStore = create<SoulsState>((set, get) => ({
-  souls: [],
-  activeSoulId: null,
+export const useSoulsStore = create<SoulsState>()(
+  persist(
+    (set, get) => ({
+      souls: [],
+      activeSoulId: null,
 
-  createSoul: (config) => {
-    const now = Date.now();
-    const soul: SoulConfig = {
-      ...config,
-      id: newId(),
-      createdAt: now,
-      updatedAt: now,
-    };
-    set((s) => ({ souls: [...s.souls, soul] }));
-    return soul;
-  },
+      createSoul: (config) => {
+        const now = Date.now();
+        const soul: SoulConfig = {
+          ...config,
+          id: newId(),
+          createdAt: now,
+          updatedAt: now,
+        };
+        set((s) => ({ souls: [...s.souls, soul] }));
+        return soul;
+      },
 
-  updateSoul: (id, patch) =>
-    set((s) => ({
-      souls: s.souls.map((soul) =>
-        soul.id === id ? { ...soul, ...patch, updatedAt: Date.now() } : soul,
-      ),
-    })),
+      updateSoul: (id, patch) =>
+        set((s) => ({
+          souls: s.souls.map((soul) =>
+            soul.id === id ? { ...soul, ...patch, updatedAt: Date.now() } : soul,
+          ),
+        })),
 
-  deleteSoul: (id) =>
-    set((s) => ({
-      souls: s.souls.filter((soul) => soul.id !== id),
-      activeSoulId: s.activeSoulId === id ? null : s.activeSoulId,
-    })),
+      deleteSoul: (id) =>
+        set((s) => ({
+          souls: s.souls.filter((soul) => soul.id !== id),
+          activeSoulId: s.activeSoulId === id ? null : s.activeSoulId,
+        })),
 
-  setActiveSoul: (id) => set({ activeSoulId: id }),
+      setActiveSoul: (id) => set({ activeSoulId: id }),
 
-  getSoul: (id) => get().souls.find((soul) => soul.id === id),
+      getSoul: (id) => get().souls.find((soul) => soul.id === id),
 
-  reset: () => set({ souls: [], activeSoulId: null }),
-}));
+      reset: () => set({ souls: [], activeSoulId: null }),
+    }),
+    {
+      name: 'cyberman:souls',
+      storage: createJSONStorage(() => idbStorage()),
+      version: 1,
+      // 只持久化数据字段；actions 是函数（zustand 默认已过滤，这里显式声明意图）
+      partialize: (state) => ({
+        souls: state.souls,
+        activeSoulId: state.activeSoulId,
+      }),
+    },
+  ),
+);

@@ -12,6 +12,8 @@
  * - 多模态附件（图片/音频，留 M3）
  */
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { idbStorage } from '@/features/storage/db';
 
 export interface ChatMessage {
   id: string;
@@ -46,74 +48,87 @@ function newId(): string {
   return crypto.randomUUID();
 }
 
-export const useChatStore = create<ChatState>((set, get) => ({
-  currentConversation: null,
-  streamingMessageId: null,
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set, get) => ({
+      currentConversation: null,
+      streamingMessageId: null,
 
-  startConversation: (soulId, title) => {
-    const now = Date.now();
-    const conv: ChatConversation = {
-      id: newId(),
-      soulId,
-      title: title ?? '新对话',
-      messages: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    set({ currentConversation: conv, streamingMessageId: null });
-    return conv;
-  },
-
-  appendMessage: (msg) => {
-    const conv = get().currentConversation;
-    if (!conv) return null;
-
-    const fullMsg: ChatMessage = {
-      ...msg,
-      id: newId(),
-      createdAt: Date.now(),
-    };
-
-    set({
-      currentConversation: {
-        ...conv,
-        messages: [...conv.messages, fullMsg],
-        updatedAt: Date.now(),
+      startConversation: (soulId, title) => {
+        const now = Date.now();
+        const conv: ChatConversation = {
+          id: newId(),
+          soulId,
+          title: title ?? '新对话',
+          messages: [],
+          createdAt: now,
+          updatedAt: now,
+        };
+        set({ currentConversation: conv, streamingMessageId: null });
+        return conv;
       },
-      streamingMessageId: msg.role === 'assistant' ? fullMsg.id : get().streamingMessageId,
-    });
 
-    return fullMsg;
-  },
+      appendMessage: (msg) => {
+        const conv = get().currentConversation;
+        if (!conv) return null;
 
-  appendChunk: (messageId, chunk) =>
-    set((s) => {
-      if (!s.currentConversation) return s;
-      return {
-        currentConversation: {
-          ...s.currentConversation,
-          messages: s.currentConversation.messages.map((m) =>
-            m.id === messageId ? { ...m, content: m.content + chunk } : m,
-          ),
-          updatedAt: Date.now(),
-        },
-      };
-    }),
+        const fullMsg: ChatMessage = {
+          ...msg,
+          id: newId(),
+          createdAt: Date.now(),
+        };
 
-  finalizeMessage: () => set({ streamingMessageId: null }),
+        set({
+          currentConversation: {
+            ...conv,
+            messages: [...conv.messages, fullMsg],
+            updatedAt: Date.now(),
+          },
+          streamingMessageId: msg.role === 'assistant' ? fullMsg.id : get().streamingMessageId,
+        });
 
-  setTitle: (title) =>
-    set((s) =>
-      s.currentConversation
-        ? {
+        return fullMsg;
+      },
+
+      appendChunk: (messageId, chunk) =>
+        set((s) => {
+          if (!s.currentConversation) return s;
+          return {
             currentConversation: {
               ...s.currentConversation,
-              title,
+              messages: s.currentConversation.messages.map((m) =>
+                m.id === messageId ? { ...m, content: m.content + chunk } : m,
+              ),
               updatedAt: Date.now(),
             },
-          }
-        : s,
-    ),
+          };
+        }),
 
-  clearConversation: () => set({ currentConversation: null, streamingMessageId: null }),
-}));
+      finalizeMessage: () => set({ streamingMessageId: null }),
+
+      setTitle: (title) =>
+        set((s) =>
+          s.currentConversation
+            ? {
+                currentConversation: {
+                  ...s.currentConversation,
+                  title,
+                  updatedAt: Date.now(),
+                },
+              }
+            : s,
+        ),
+
+      clearConversation: () => set({ currentConversation: null, streamingMessageId: null }),
+    }),
+    {
+      name: 'cyberman:chat',
+      storage: createJSONStorage(() => idbStorage()),
+      version: 1,
+      partialize: (state) => ({
+        currentConversation: state.currentConversation,
+        // streamingMessageId 不持久化（流式状态是临时的）
+      }),
+    },
+  ),
+);

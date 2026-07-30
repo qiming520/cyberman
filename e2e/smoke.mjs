@@ -36,6 +36,8 @@ const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await context.newPage();
 page.on('pageerror', err => log(`  [page error] ${err.message}`));
+// 全局 dialog handler：自动 accept 所有 confirm/alert
+page.on('dialog', dialog => dialog.accept());
 
 let pass = 0, fail = 0;
 const tally = (ok) => ok ? (pass++, true) : (fail++, false);
@@ -180,7 +182,6 @@ try {
 
   // ────────── Step 9: 删除清理（在硬刷新前先清理）──────────
   log('\n[Step 9] 删除测试角色（清理）');
-  page.on('dialog', dialog => dialog.accept());
   await page.click('button[title="删除"]');
 
   tally(await check(page, '回到空状态', async () => {
@@ -192,29 +193,37 @@ try {
 
   await page.screenshot({ path: 'e2e/screenshots/07-home-after-delete.png', fullPage: true });
 
-  // ────────── Step 10: 已知限制 — 硬刷新后会丢失（M1-007 待做）──────────
-  log('\n[Step 10] 已知限制记录：硬刷新后灵魂丢失（M1-007 待做）');
-  log('  ⓘ 此 step 是「文档化测试」而非 pass/fail — 记录产品当前边界');
+  // ────────── Step 10: M1-007 持久化验证 — 硬刷新后灵魂应保留 ──────────
+  log('\n[Step 10] M1-007 持久化验证：硬刷新后灵魂应保留（IndexedDB）');
+  log('  ⓘ 此 step 验证 IDB 持久化生效 —— M1-007 完成前应 fail，完成后应 pass');
 
-  // 先创建一个临时灵魂用于「硬刷新后丢失」验证
+  // 先创建一个临时灵魂用于「硬刷新后保留」验证
   await page.goto(BASE + '/workshop');
   await page.waitForSelector('input[placeholder*="小柚"]', { timeout: 5000 });
   await page.locator('input[placeholder*="小柚"]').first().fill('临时测试角色');
   await page.click('button:has-text("创建灵魂")');
   await page.waitForURL(/\/chat/, { timeout: 5000 });
 
+  // 等 IDB 写入完成（zustand persist 异步）
+  await page.waitForTimeout(800);
+
   // 现在硬刷新
   await page.goto(BASE + '/');
   await page.waitForSelector('h1', { timeout: 5000 });
+  // 等待 hydration 完成（首次加载时 IDB 数据异步注入 store）
+  await page.waitForTimeout(800);
   const afterReloadText = await page.locator('body').textContent();
   const soulsGoneAfterReload = !afterReloadText?.includes('临时测试角色');
   await page.screenshot({ path: 'e2e/screenshots/08-after-reload.png', fullPage: true });
 
-  if (soulsGoneAfterReload) {
-    log(`  ✓ 已知行为：硬刷新后灵魂丢失（store 是 in-memory；M1-007 接 IndexedDB 会修）`);
-  } else {
-    log(`  ⚠ 意外：硬刷新后灵魂仍在——可能 zustand persist 已生效，需要确认`);
-  }
+  tally(await check(page, 'M1-007：硬刷新后灵魂仍在（M1-007 持久化生效）', async () => {
+    if (soulsGoneAfterReload) throw new Error('硬刷新后「临时测试角色」消失');
+  }));
+
+  // 清理：删除测试角色
+  log('\n[Step 10b] 清理：删除「临时测试角色」');
+  await page.click('button[title="删除"]');
+  await page.waitForTimeout(500);
 
 } catch (err) {
   console.error('\n[FATAL] Test crashed:', err.message);

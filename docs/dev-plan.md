@@ -100,6 +100,27 @@
 
 > 完成的 Sprint 归档在这里，供后续参考。
 
+### 🏁 Sprint #2：灵魂编辑器 + 首轮对话 + 持久化（已完成 2026-07-30）
+- **目标**：从「能录入 Key」走向「创建灵魂 + 实时预览 + 跨会话保留」
+- **验证标准**：13 pass / 0 fail（E2E 含 IDB 持久化硬刷新验证）
+- **产出**：~14 个新文件、~2500 行、3 个 feat commit、1 个反思决策
+- **Git 链**：`9c51d84` (M1-001) → `f1d3f3a` (M1-002) → `46d2196` (M1-003) → `448090b` (M1-004) → `c593f6f` (M1-005a) → `4995907` (M1-005b) → `73fa007` (M1-008 修复) → `9f997b6` (E2E) → `<M1-007 hash>`
+
+**关键决策回顾**：
+- 📌 M1-007 前置到 Sprint #2 第一项（用户场景必要性 > 技术便利）
+- 📌 反思系统性改进：每 ADR 加「代价/风险」段；Dev Plan 加 user story 段
+- 📌 单 db + 单 store + KV 模式（避免过早实体化；M2 再分表）
+- 📌 partialize 显式声明持久化范围（不持久化 streamingMessageId）
+
+**教训沉淀**：
+- 💡 决策时必须写代价/风险段（之前漏了导致 M1-007 优先级偏低）
+- 💡 优先级按用户场景必要性排，不是技术便利
+- 💡 E2E 测试必须每个 Sprint 收尾跑（curl/typecheck 抓不到交互 bug）
+- 💡 异步写入测试要 wait 缓冲
+- 💡 Dialog handler 全局只注册一次
+
+---
+
 ### 🏁 Sprint #1：M1 任务 1.1-1.4 项目脚手架（已完成 2026-07-30）
 - **目标**：从 PRD 走向第一个可启动的雏形
 - **验证标准**：`npm run dev` 起得来，能在设置中心录入 API Key —— **全部达成**
@@ -133,16 +154,15 @@ Sprint #1 → Sprint #2 衔接时，已由 zustand `persist` 中间件保证 Loc
 | M1-005a | 灵魂编辑器表单（5 sections：身份/人格/背景/关系/知识库占位） | ✅ | 4h | typecheck 0 error（修了 4 个）；4 路由 200；7 文件 Vite 编译成功；保存调用 useSoulsStore.createSoul | 见 PRD §4.1.1 / §2.5.1；详情见 Dev Log 2026-07-30 M1-005a 完成；教训：z.coerce / z.string().default / DiceBear API / 未用 import |
 | M1-005b | Prompt 编译 + 预览（右栏实时编译） | ✅ | 3h | typecheck 0 error；4 路由 200；5 文件 Vite 编译成功；左表单 + 右预览实时同步；末尾注入防护 | 见 PRD §4.1.2 / Tech Design §6.1；详情见 Dev Log 2026-07-30 M1-005b 完成；决策：MBTI 独立文件 + 注入防护放末尾 + useSoulEditor hook 抽离；bug fix：详见 M1-008 记录 |
 | M1-008 | **角色库列表**（M1-002 遗漏补做：souls[] 列表 + 进入聊天 + 删除） | ✅ | 1h | typecheck 0 error；HomePage 接 useSoulsStore；DiceBear 头像 + 关系标签 + 性格关键词 | 见 PRD §2.2 F-005 / §2.4；详情见 Dev Log 2026-07-30 浏览器反馈 bug 修复条目；教训：交付 P0 要有 check list / Sprint 收尾需浏览器实测 |
+| **M1-007** | **🆕 对话历史 + 角色数据持久化**（IndexedDB） | ✅ | 3h | typecheck 0 error；E2E 13 pass / 0 fail；硬刷新后灵魂仍在（截图证据） | 见 Tech Design §5.1 / PRD §2.4 / Dev Log 2026-07-30「M1-007 完成 + 反思」 |
 | M1-006 | 单角色文本对话（Vercel AI SDK + 流式输出） | ⚪ | 4h | 真实 LLM 调用；流式回复；Provider/Model 选择 | 见 PRD §4.3 / Tech Design §4.2 |
-| M1-007 | **对话历史 + 角色数据持久化**（IndexedDB） | ⚪ ↑优先级 | 3h | 刷新后历史仍在；**角色跨会话保留** | 见 Tech Design §5.1 / PRD §2.4 / Dev Log 2026-07-30「E2E 实测」记录的产品边界问题 |
 
-**Sprint 进度**：3/4 完成（75%）
+**Sprint 进度**：4/4 完成（100%）✅ Sprint #2 完成
 
-**⚠️ Sprint #2 已知产品边界**（E2E 实测发现）：
+**⚠️ → ✅ Sprint #2 已知产品边界**（E2E 验证）：
 - ✅ 单次 SPA 会话内：所有功能正常
-- ❌ 浏览器硬刷新 / 关闭重开：souls/chat 数据丢失（in-memory）
-- ❌ 跨设备同步：完全不支持（需 BFF）
-- **结论**：M1-007 必须在本 Sprint 内完成，否则交付物不符合 PRD §2.4 用户预期
+- ✅ 浏览器硬刷新 / 关闭重开：souls/chat 数据保留（M1-007 完成）
+- ❌ 跨设备同步：完全不支持（需 BFF；不在本 Sprint 范围）
 
 ---## 四、附录：任务状态说明
 
