@@ -15,18 +15,29 @@
  * - 多模态附件（图片/语音）—— Sprint #7
  * - 情绪状态机 —— Sprint #7
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useSoulsStore } from '@/stores/souls';
 import { useChatStore } from '@/stores/chat';
 import { useSettingsStore } from '@/stores/settings';
 import { DiceBearAvatar } from '@/features/soul/editor/DiceBearAvatar';
 import { getAgentOrchestrator } from '@/features/agent/orchestrator';
+import { maybeSummarize, getMemoryContext } from '@/features/memory/summarizer';
 import { Send, Square, Settings as SettingsIcon, AlertCircle } from 'lucide-react';
 
 export function ChatPage() {
   const [searchParams] = useSearchParams();
-  const soulId = searchParams.get('soulId');
+  const explicitSoulId = searchParams.get('soulId');
+
+  // M7-004 智能调度：URL ?soulId > activeSoulId > 第一个 soul
+  const activeSoulId = useSoulsStore((s) => s.activeSoulId);
+  const allSouls = useSoulsStore((s) => s.souls);
+  const soulId = useMemo(() => {
+    if (explicitSoulId) return explicitSoulId;
+    if (activeSoulId) return activeSoulId;
+    if (allSouls.length > 0) return allSouls[0].id;
+    return null;
+  }, [explicitSoulId, activeSoulId, allSouls]);
 
   const soul = useSoulsStore((s) => (soulId ? s.getSoul(soulId) ?? null : null));
   const currentConversation = useChatStore((s) => s.currentConversation);
@@ -45,13 +56,39 @@ export function ChatPage() {
   const [input, setInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [memoryCount, setMemoryCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // soulId 变化时启动新会话
+  // soulId 变化时：summarize 上次会话 + 启动新会话 + 加载 memory
   useEffect(() => {
-    if (soul && (!currentConversation || currentConversation.soulId !== soul.id)) {
+    if (!soul) return;
+
+    const oldConv = currentConversation;
+    const newSoul = oldConv?.soulId !== soul.id;
+
+    if (newSoul) {
+      // 1. Summarize 上次会话（如果有 >= 5 条消息）
+      if (oldConv && oldConv.messages.length >= 5) {
+        maybeSummarize(
+          useSoulsStore.getState().getSoul(oldConv.soulId) ?? soul,
+          oldConv.messages.map(m => ({
+            id: m.id,
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+          })),
+        ).then(() => {
+          // 不 await；后台跑
+        });
+      }
+
+      // 2. 启动新会话
       startConversation(soul.id);
     }
+
+    // 3. 加载 memory 计数（用于显示）
+    getMemoryContext(soul.id, 5).then(ctx => {
+      setMemoryCount(ctx ? ctx.split('\n').filter(Boolean).length : 0);
+    });
   }, [soul, currentConversation, startConversation]);
 
   // 自动滚动到底部
@@ -90,9 +127,12 @@ export function ChatPage() {
       .filter(m => m.id !== assistantMsg.id && m.role !== 'system')
       .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
+    // 加载 memory context（M7-002）
+    const memoryContext = await getMemoryContext(soul.id, 5);
+
     try {
       await orch.stream(
-        { soul, userInput: text, history },
+        { soul, userInput: text, history, memoryContext: memoryContext || undefined },
         (event) => {
           if (event.type === 'text') {
             appendChunk(assistantMsg.id, event.data);
@@ -129,6 +169,9 @@ export function ChatPage() {
           <p className="text-xs text-slate-500 truncate">
             {soul.personality.mbti ? `${soul.personality.mbti} · ` : ''}
             {currentModel}
+            {memoryCount > 0 && (
+              <span className="ml-2 text-emerald-400">🧠 {memoryCount} 条长期记忆</span>
+            )}
           </p>
         </div>
         <ProviderSelector

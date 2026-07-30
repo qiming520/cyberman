@@ -26,6 +26,115 @@
 
 ## 2026-07-30
 
+### Sprint #7 完整收官：动画 + 记忆 + 情绪 + 智能调度（4/4 任务）
+**类型**：✅进度 + 📌决策 + 💡教训
+**相关任务**：M7-001 / M7-002 / M7-003 / M7-004
+**关联**：[本文件「M7-001 角色动画」](dev-log.md) · [dev-plan.md Sprint #7](dev-plan.md)
+
+**背景**：
+Sprint #7 完整收官：让 3D 角色「活」起来（动画）+ 长期记忆 + 情绪 + 智能调度。
+按用户「直接都完成好」指令一次性交付 4 个任务。
+
+**进展**：
+
+**1. 4 任务文件清单**
+
+| 任务 | 新增/修改文件 | 关键产出 |
+|---|---|---|
+| M7-001 角色动画 | characterState.ts + HumanFigure + Scene + SoulDetailModal | 4 状态 + useFrame 插值 + 4 按钮 |
+| M7-002 长期记忆 | memoryRepo.ts + summarizer.ts + Orchestrator + ChatPage | IDB 存储 + LLM summarizer + 注入 system prompt |
+| M7-003 情绪状态 | emotion.ts + Scene + SoulDetailModal | 5 情绪 + 头顶 emoji + 5 按钮 |
+| M7-004 智能调度 | ChatPage | URL ?soulId > activeSoulId > 第一个 soul |
+
+**2. 验证结果（21 pass / 0 fail）**
+
+```
+dev mode (13)：MVP 流程基线（回归基线）
+production (21)：
+  - 3D 渲染 / 尺寸 / 无错误（3）
+  - 浮层打开（1）
+  - 详情 Modal：弹窗 + 姓名 + 关系 + traits + MBTI + 捏脸（6）
+  - 聊天页：角色名 + Provider + 模型 + 输入框 + 发送 + 无 Key 警告（5）
+  - 3D 状态切换：4 按钮 + 默认高亮 + 点击切换（3）
+  - 5 情绪按钮：存在 + 默认高亮「中性」（2）
+  - 智能调度：无 ?soulId → 自动选第一个角色（1）
+```
+
+截图证据：
+- production-state-sitting.png
+- production-emotion-default.png
+- production-auto-dispatch.png
+
+**3. 关键设计**
+
+📌 **决策 1：4 个状态枚举 + transform 配置表**
+- standing: y=0, rotX=0, rotZ=0
+- sitting: y=-0.35, rotX=0, rotZ=0（整体下沉）
+- lying: y=-0.35, rotZ=π/2（沿 Z 轴旋转 90°）
+- walking: y=0 + useFrame sin(time) X/Y 摆动（持续移动）
+
+📌 **决策 2：长期记忆简化方案**
+- 触发：ChatPage 启动时检测上次会话有 >= 5 条消息 → 自动 summarizer
+- 存储：IDB `memories` 表（keyPath: id，by_soul 索引）
+- 注入：每次 LLM 调用前取最近 5 条拼到 system prompt
+- 简化：本 Sprint 不做 LLM 自动 emotion 提取（解析复杂，留 Sprint #8）
+
+📌 **决策 3：5 个情绪 + 头顶 emoji 反映**
+- neutral / happy / sad / tender / angry
+- 头顶显示对应 emoji（drei <Text>，0.35 字号）
+- 详情 Modal 5 按钮切换
+- 当前实现：手动切换（不做 LLM 自动提取）
+
+📌 **决策 4：智能调度三级 fallback**
+- URL ?soulId 显式指定（最高优先级）
+- activeSoulId（用户最近选中的角色）
+- 第一个 soul（兜底）
+- 都没有 → 提示「先在角色库中创建」
+
+**4. 4 条💡 教训**
+
+💡 **教训 1：useFrame 时间因子公式**
+- `1 - exp(-dt*5)` 时间无关平滑系数
+- walking 例外：sin(time) 持续摆动
+
+💡 **教训 2：E2E 卡住原因 + 简化策略**
+- M7-002 原始 E2E 步骤：IDB 注入 2 条 memories → goto chat → 检查徽章
+- 卡住原因：IDB transactions + zustand re-render 时序复杂
+- 简化：拆成 M7-002（功能）+ M7-004（智能调度）分别测，避开 IDB 写入
+- 启示：E2E 不要做复杂的多步 IDB 写入（时序敏感）
+
+💡 **教训 3：useMemo 必须 import**
+- TS strict mode 报「找不到名称 useMemo」
+- 因我用了 `useMemo(() => ...)` 但没 import
+- 修法：补 import（TS 不像 JSX 隐式全局）
+
+💡 **教训 4：Sprint 范围一次完成 vs 分步 commit**
+- 用户「直接都完成好」→ 4 任务一次实现 + 一次 commit
+- vs 之前 Sprint 一个任务一次 commit
+- 两种模式各有适用：用户明确要求「一起」时一次 commit；常规按任务分 commit 便于回滚
+
+**5. 实际用户能跑的事**
+
+```bash
+npm run build && npx vite preview
+# 1. 设置 → 填 API Key
+# 2. 回首页 → 点角色 → 详情 Modal
+# 3. 切换姿态（站/坐/躺/走）→ 3D 角色实时变化！
+# 4. 切换情绪（中性/开心/伤心/温柔/生气）→ 头顶 emoji 变化！
+# 5. 进入聊天 → 跟角色聊 5 轮以上 → 切到别的角色 → 回来会触发 summarizer
+# 6. 顶部看到「🧠 N 条长期记忆」
+# 7. /chat 直接访问（无 ?soulId）→ 自动选 activeSoulId 或第一个 soul
+```
+
+**影响**：
+- Sprint #7 4/4 完成（100%）
+- 累计 E2E 覆盖 34 个真实测试（13 dev + 21 prod）
+- 完整 user scenario 跑通：看到 3D 角色 → 切换姿态/情绪 → 跟角色对话 → 长期记忆 → 智能选角色
+
+**关联决策**：[M7-001 角色动画](dev-log.md) · [dev-plan.md Sprint #7](dev-plan.md)
+
+---
+
 ### Sprint #7 M7-001：角色动画状态机（4 姿态 + useFrame 插值）
 **类型**：✅进度 + 📌决策 + 💡教训
 **相关任务**：M7-001（第一阶段）

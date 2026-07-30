@@ -32,6 +32,8 @@ export interface AgentRequest {
   soul: SoulConfig;
   userInput: string;
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  /** 长期记忆（M7-002 注入到 system prompt 末尾） */
+  memoryContext?: string;
 }
 
 export type AgentStreamEvent =
@@ -79,6 +81,10 @@ export class AgentOrchestrator {
 
     // 编译 Prompt
     const compiled: CompiledPrompt = compileSystemPrompt({ soul: req.soul });
+    // 拼接长期记忆（M7-002）
+    const systemWithMemory = req.memoryContext
+      ? `${compiled.systemPrompt}\n\n# 你和用户的历史（长期记忆）\n${req.memoryContext}\n\n# 行为指引\n- 引用记忆时自然融入对话，不要生硬背诵\n- 记忆可能过时（如「用户喜欢爵士」可能后来不喜欢了），以当前对话为主`
+      : compiled.systemPrompt;
     const model = this.buildModel(provider, apiKey, modelId);
     const messages = this.buildMessages(req);
 
@@ -87,7 +93,7 @@ export class AgentOrchestrator {
     try {
       const result = await streamText({
         model,
-        system: compiled.systemPrompt,
+        system: systemWithMemory,
         messages,
         abortSignal: this.abortController.signal,
         // 温度略高增加生动性

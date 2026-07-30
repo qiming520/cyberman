@@ -24,6 +24,13 @@ import {
   STATE_ICONS,
   type CharacterState,
 } from '@/stores/characterState';
+import {
+  useEmotionStore,
+  ALL_EMOTIONS,
+  EMOTION_LABELS,
+  EMOTION_EMOJI,
+  type Emotion,
+} from '@/stores/emotion';
 import { MessageCircle, Hammer, Sparkles } from 'lucide-react';
 
 export interface SoulDetailModalProps {
@@ -168,6 +175,19 @@ export function SoulDetailModal({ soulId: externalSoulId, onClose: externalOnClo
           </div>
         </section>
 
+        {/* 情绪选择（M7-003） */}
+        <section>
+          <h4 className="text-xs uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5">
+            <span>💝</span>
+            <span>当前心情</span>
+          </h4>
+          <div className="grid grid-cols-5 gap-2">
+            {ALL_EMOTIONS.map((e) => (
+              <EmotionButton key={e} emotion={e} soulId={soul.id} />
+            ))}
+          </div>
+        </section>
+
         {/* 操作按钮 */}
         <footer className="flex gap-2 pt-2 border-t border-slate-800">
           <button
@@ -255,6 +275,26 @@ function StateButton({ state, soulId }: { state: CharacterState; soulId: string 
     >
       <span className="text-xl">{STATE_ICONS[state]}</span>
       <span className="text-xs">{STATE_LABELS[state]}</span>
+    </button>
+  );
+}
+
+function EmotionButton({ emotion, soulId }: { emotion: Emotion; soulId: string }) {
+  const current = useEmotionStore((s) => s.getEmotion(soulId));
+  const setEmotion = useEmotionStore((s) => s.setEmotion);
+  const isActive = current === emotion;
+  return (
+    <button
+      type="button"
+      onClick={() => setEmotion(soulId, emotion)}
+      className={`flex flex-col items-center gap-1 py-2 rounded-lg text-sm transition-colors ${
+        isActive
+          ? 'bg-pink-600 text-white'
+          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+      }`}
+    >
+      <span className="text-2xl">{EMOTION_EMOJI[emotion]}</span>
+      <span className="text-xs">{EMOTION_LABELS[emotion]}</span>
     </button>
   );
 }

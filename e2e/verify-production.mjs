@@ -187,6 +187,33 @@ check('点击「坐下」后状态切换', async () => {
 await page.screenshot({ path: 'e2e/screenshots/production-state-sitting.png', fullPage: false });
 console.log(`📸 截图 4：e2e/screenshots/production-state-sitting.png`);
 
+console.log(`Step 7: 验证情绪选择（M7-003）...`);
+check('详情 Modal 显示 5 情绪按钮（中性/开心/伤心/温柔/生气）', async () => {
+  return (
+    (await page.locator('button:has-text("中性")').count()) >= 1 &&
+    (await page.locator('button:has-text("开心")').count()) >= 1 &&
+    (await page.locator('button:has-text("伤心")').count()) >= 1 &&
+    (await page.locator('button:has-text("温柔")').count()) >= 1 &&
+    (await page.locator('button:has-text("生气")').count()) >= 1
+  );
+});
+check('默认情绪按钮高亮「中性」', async () => {
+  const neutralBtn = page.locator('button:has-text("中性")').first();
+  const classes = await neutralBtn.getAttribute('class');
+  return classes?.includes('bg-pink-600') ?? false;
+});
+await page.screenshot({ path: 'e2e/screenshots/production-emotion-default.png', fullPage: false });
+console.log(`📸 截图 5：e2e/screenshots/production-emotion-default.png`);
+
+console.log(`Step 8: 验证智能调度（M7-004）— 无 ?soulId 时自动选 active...`);
+await page.goto(BASE + '/chat', { waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(2000);
+check('无 ?soulId 时自动选第一个角色「小柚」', async () => {
+  return (await page.locator('h2:has-text("小柚")').count()) >= 1;
+});
+await page.screenshot({ path: 'e2e/screenshots/production-auto-dispatch.png', fullPage: false });
+console.log(`📸 截图 6：e2e/screenshots/production-auto-dispatch.png`);
+
 await browser.close();
 if (server) server.kill();
 

@@ -16,6 +16,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Text } from '@react-three/drei';
 import { useSoulsStore } from '@/stores/souls';
 import { useCharacterStateStore } from '@/stores/characterState';
+import { useEmotionStore, EMOTION_EMOJI } from '@/stores/emotion';
 import { HumanFigure, getHumanParams } from './HumanFigure';
 import type { SoulConfig } from '@/stores/souls';
 
@@ -95,6 +96,7 @@ function CharacterGroup({ soul, position, isActive, onClick }: CharacterGroupPro
   const name = soul.identity.name || '未命名';
   const params = getHumanParams(soul);
   const state = useCharacterStateStore((s) => s.getState(soul.id));
+  const emotion = useEmotionStore((s) => s.getEmotion(soul.id));
 
   return (
     <group position={position} onClick={onClick}>
@@ -155,6 +157,18 @@ function CharacterGroup({ soul, position, isActive, onClick }: CharacterGroupPro
         outlineColor="#0f172a"
       >
         [{stateLabel(state)}]
+      </Text>
+
+      {/* 情绪 emoji（M7-003） */}
+      <Text
+        position={[0, 2.5, 0]}
+        fontSize={0.35}
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={0.01}
+        outlineColor="#0f172a"
+      >
+        {EMOTION_EMOJI[emotion]}
       </Text>
     </group>
   );
