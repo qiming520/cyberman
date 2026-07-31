@@ -1,16 +1,14 @@
 /**
- * 3D 场景（Sprint #5 · 积木人版本）
+ * 3D 场景（Sprint #18 · 多区域版本）
  *
- * 详解 dev-log.md「Sprint #4 M4-002」+ 「Sprint #5 M5-001」
+ * 详解 dev-log.md「Sprint #7 M7-001」+ 「Sprint #8 M8-001」+ 「Sprint #18 M18-001」
  *
- * 当前实现：
- * - Canvas + 灯光 + 地板 + 相机
- * - 从 useSoulsStore 读所有灵魂，循环渲染（每角色一个 character group）
- * - 角色用 HumanFigure 积木人组件（头 + 身 + 双臂 + 双腿 + 简单五官）
- * - 6 槽位 X 轴布局 + 名字飘字 + 关系标签 + 选中环
- * - 选中角色点击 → onClick 回调（ScenePage 接 → 弹详情 Modal）
+ * 多区域（Sprint #18）：
+ * - 3 个区域（客厅/咖啡馆/公园）有不同颜色地板 + 装饰
+ * - 角色按 soulConfig.relationship 自动分配区域
+ * - 区域内多角色随机站位（不重叠）
  *
- * 下个 Sprint（M5-003）：捏脸参数化（身高/体型/颜色/发型 4 个参数可调）
+ * 4 状态姿态 + 5 情绪头顶 emoji + 选中环
  */
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Text } from '@react-three/drei';
@@ -18,22 +16,22 @@ import { useSoulsStore } from '@/stores/souls';
 import { useCharacterStateStore } from '@/stores/characterState';
 import { useEmotionStore, EMOTION_EMOJI } from '@/stores/emotion';
 import { HumanFigure, getHumanParams } from './HumanFigure';
+import { ZONES, assignZoneForRelationship, type ZoneType } from './zones';
 import type { SoulConfig } from '@/stores/souls';
 
-// 角色位置布局：6 个槽位，沿 X 轴均布
-// 移动端（< 768）用更密集的槽位避免出屏
-function getPositionByIndex(index: number): [number, number, number] {
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-  const slots = isMobile
-    ? [-1.5, -0.9, -0.3, 0.3, 0.9, 1.5]  // 移动端密集
-    : [-3, -1.8, -0.6, 0.6, 1.8, 3];        // 桌面端
-  const x = slots[index % slots.length] ?? 0;
-  return [x, 0, 0];
+interface SceneProps {
+  onCharacterClick?: (soulId: string) => void;
 }
 
-interface SceneProps {
-  /** 角色点击回调（外部 ScenePage 注入 → 打开详情 Modal） */
-  onCharacterClick?: (soulId: string) => void;
+/** 按 zone 内的角色索引（zone 内多角色站位） */
+function getPositionInZone(zone: ZoneType, indexInZone: number): [number, number, number] {
+  const config = ZONES[zone];
+  const totalSlots = 4;  // 每区最多 4 个角色
+  const slot = indexInZone % totalSlots;
+  // 在 zone 中心 + 小范围偏移
+  const offsetX = ((slot % 2) - 0.5) * 1.2;
+  const offsetZ = (Math.floor(slot / 2) - 0.5) * 1.2;
+  return [config.center[0] + offsetX, 0, config.center[1] + offsetZ];
 }
 
 export function Scene({ onCharacterClick }: SceneProps = {}) {
@@ -41,38 +39,83 @@ export function Scene({ onCharacterClick }: SceneProps = {}) {
   const activeSoulId = useSoulsStore((s) => s.activeSoulId);
   const setActiveSoul = useSoulsStore((s) => s.setActiveSoul);
 
+  // 按 zone 分组角色
+  const soulsByZone = souls.reduce<Record<ZoneType, SoulConfig[]>>(
+    (acc, soul) => {
+      const zone = assignZoneForRelationship(soul.relationship.type);
+      acc[zone].push(soul);
+      return acc;
+    },
+    { living: [], cafe: [], park: [] },
+  );
+
+  // 渲染角色（每区多角色）
+  const renderSouls = (zone: ZoneType) =>
+    soulsByZone[zone].map((soul, i) => (
+      <CharacterGroup
+        key={soul.id}
+        soul={soul}
+        position={getPositionInZone(zone, i)}
+        isActive={activeSoulId === soul.id}
+        onClick={() => {
+          setActiveSoul(soul.id);
+          onCharacterClick?.(soul.id);
+        }}
+      />
+    ));
+
   return (
     <Canvas
       shadows
-      camera={{ position: [0, 2.5, 6], fov: 50 }}
+      camera={{ position: [0, 3, 7], fov: 50 }}
       style={{ width: '100%', height: '100%', background: '#0f172a' }}
     >
       <ambientLight intensity={0.5} />
       <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
       <hemisphereLight args={['#a3b8ff', '#4a3b6e', 0.4]} />
 
-      {/* 地板 */}
+      {/* 整体地板（深色背景） */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <circleGeometry args={[10, 64]} />
-        <meshStandardMaterial color="#1e293b" />
+        <planeGeometry args={[20, 20]} />
+        <meshStandardMaterial color="#0f172a" />
       </mesh>
 
       {/* 网格地板（辅助感） */}
       <gridHelper args={[20, 20, '#334155', '#1e293b']} position={[0, 0.001, 0]} />
 
-      {/* 角色们 */}
-      {souls.map((soul, i) => (
-        <CharacterGroup
-          key={soul.id}
-          soul={soul}
-          position={getPositionByIndex(i)}
-          isActive={activeSoulId === soul.id}
-          onClick={() => {
-            setActiveSoul(soul.id);
-            onCharacterClick?.(soul.id);
-          }}
-        />
-      ))}
+      {/* 3 区域地板（不同颜色区分） */}
+      {(Object.keys(ZONES) as ZoneType[]).map((zone) => {
+        const c = ZONES[zone];
+        return (
+          <group key={zone}>
+            <mesh
+              rotation={[-Math.PI / 2, 0, 0]}
+              position={[c.center[0], 0.005, c.center[1]]}
+              receiveShadow
+            >
+              <circleGeometry args={[c.radius, 32]} />
+              <meshStandardMaterial color={c.floorColor} transparent opacity={0.6} />
+            </mesh>
+            {/* 区域标签（头顶 emoji） */}
+            <Text
+              position={[c.center[0], 3.2, c.center[1]]}
+              fontSize={0.5}
+              color={c.accent}
+              anchorX="center"
+              anchorY="middle"
+              outlineWidth={0.02}
+              outlineColor="#0f172a"
+            >
+              {c.emoji} {c.name}
+            </Text>
+          </group>
+        );
+      })}
+
+      {/* 角色们（按 zone 分布） */}
+      {renderSouls('living')}
+      {renderSouls('cafe')}
+      {renderSouls('park')}
 
       {/* 视角控制 */}
       <OrbitControls
@@ -102,8 +145,18 @@ function CharacterGroup({ soul, position, isActive, onClick }: CharacterGroupPro
   const state = useCharacterStateStore((s) => s.getState(soul.id));
   const emotion = useEmotionStore((s) => s.getEmotion(soul.id));
 
+  // 走动时小幅摆动（受 M18-002 简化）
+  const time = performance.now() / 1000;
+  const walkOffset = state === 'walking'
+    ? [Math.sin(time * 0.8) * 0.3, 0, Math.cos(time * 0.6) * 0.2]
+    : [0, 0, 0];
+
   return (
-    <group position={position} onClick={onClick}>
+    <group position={[
+      position[0] + walkOffset[0],
+      position[1] + walkOffset[1],
+      position[2] + walkOffset[2],
+    ]} onClick={onClick}>
       {/* 选中标记：红色环形 */}
       {isActive && (
         <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -112,7 +165,7 @@ function CharacterGroup({ soul, position, isActive, onClick }: CharacterGroupPro
         </mesh>
       )}
 
-      {/* 积木人（带 4 状态动画） */}
+      {/* 积木人（带 4 状态 + 8 捏脸 + 5 情绪） */}
       <HumanFigure
         bodyColor={params.bodyColor}
         skinColor={params.skinColor}
@@ -121,6 +174,8 @@ function CharacterGroup({ soul, position, isActive, onClick }: CharacterGroupPro
         height={params.height}
         bodyType={params.bodyType}
         state={state}
+        emotion={emotion}
+        face={soul.face}
         onClick={onClick}
       />
 
@@ -150,7 +205,7 @@ function CharacterGroup({ soul, position, isActive, onClick }: CharacterGroupPro
         {relationshipLabel(soul.relationship.type)}
       </Text>
 
-      {/* 状态标签（M7-001） */}
+      {/* 状态标签 */}
       <Text
         position={[0, 2.15, 0]}
         fontSize={0.08}
@@ -163,7 +218,7 @@ function CharacterGroup({ soul, position, isActive, onClick }: CharacterGroupPro
         [{stateLabel(state)}]
       </Text>
 
-      {/* 情绪 emoji（M7-003） */}
+      {/* 情绪 emoji */}
       <Text
         position={[0, 2.5, 0]}
         fontSize={0.35}

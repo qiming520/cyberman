@@ -167,6 +167,11 @@ function soulToForm(soul: SoulConfig): SoulFormValues {
       manualFacts: [...soul.knowledge.manualFacts],
     },
     body: soul.body ?? { height: 1.0, bodyType: 1.0 },
+    face: soul.face ?? {
+      faceShape: 'oval', eyeSize: 1.0, eyeShape: 'round',
+      noseSize: 1.0, mouthSize: 1.0, mouthShape: 'wide',
+      eyebrowStyle: 'arch', skinTone: 'medium',
+    },
   };
 }
 
@@ -201,6 +206,7 @@ function formToCreate(form: SoulFormValues): Omit<SoulConfig, 'id' | 'createdAt'
       manualFacts: form.knowledge.manualFacts ?? [],
     },
     body: form.body ?? { height: 1.0, bodyType: 1.0 },
+    face: form.face,
   };
 }
 
@@ -235,5 +241,6 @@ function formToSoulPatch(form: SoulFormValues): Partial<SoulConfig> {
       manualFacts: form.knowledge.manualFacts ?? [],
     },
     body: form.body ?? { height: 1.0, bodyType: 1.0 },
+    face: form.face,
   };
 }

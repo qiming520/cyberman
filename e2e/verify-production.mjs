@@ -43,6 +43,10 @@ const check = (name, ok) => {
 };
 
 console.log(`Step 1: 注入 2 个测试灵魂到 IDB（含捏脸 body 字段）...`);
+// Sprint #19：标记首启动引导已完成（避免 E2E 看到欢迎页）
+await page.addInitScript(() => {
+  localStorage.setItem('cyberman:onboarding-completed', 'true');
+});
 await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(1500);
 
@@ -253,6 +257,28 @@ console.log(`📸 截图 8：e2e/screenshots/production-mobile-chat.png`);
 
 // 切回桌面端（避免影响后续 E2E）
 await page.setViewportSize({ width: 1440, height: 900 });
+
+console.log(`Step 10: 验证首启动引导（M19-001 · 全新会话）...`);
+// 新建一个 page，模拟"首次访问"（无 onboarding-completed）
+const freshContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const freshPage = await freshContext.newPage();
+await freshPage.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
+await freshPage.waitForTimeout(1500);
+check('首次访问显示首启动引导（欢迎页 + 进入按钮）', async () => {
+  return (await freshPage.locator('text=欢迎来到赛博机器人').count()) >= 1;
+});
+check('首启动引导有"进入 3D 大厅"CTA', async () => {
+  return (await freshPage.locator('text=进入 3D 大厅').count()) >= 1;
+});
+await freshPage.screenshot({ path: 'e2e/screenshots/production-firstrun.png', fullPage: false });
+console.log(`📸 截图 9：e2e/screenshots/production-firstrun.png`);
+// 点进入 → 应进入 3D 大厅
+await freshPage.click('text=进入 3D 大厅');
+await freshPage.waitForTimeout(1000);
+check('点击"进入"后看到 Canvas', async () => {
+  return (await freshPage.locator('canvas').count()) >= 1;
+});
+await freshContext.close();
 
 await browser.close();
 if (server) server.kill();

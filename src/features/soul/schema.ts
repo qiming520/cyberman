@@ -47,6 +47,24 @@ export const bodyParamsSchema = z.object({
   bodyType: z.number().min(0.7).max(1.3),
 });
 
+// M17-002 高级捏脸 schema
+export const faceShapeEnum = z.enum(['oval', 'round', 'square', 'long']);
+export const eyeShapeEnum = z.enum(['round', 'almond', 'narrow']);
+export const mouthShapeEnum = z.enum(['thin', 'wide', 'full']);
+export const eyebrowStyleEnum = z.enum(['flat', 'arch', 'round', 'angled']);
+export const skinToneEnum = z.enum(['light', 'medium', 'dark', 'tan']);
+
+export const faceParamsSchema = z.object({
+  faceShape: faceShapeEnum,
+  eyeSize: z.number().min(0.7).max(1.3),
+  eyeShape: eyeShapeEnum,
+  noseSize: z.number().min(0.7).max(1.3),
+  mouthSize: z.number().min(0.7).max(1.3),
+  mouthShape: mouthShapeEnum,
+  eyebrowStyle: eyebrowStyleEnum,
+  skinTone: skinToneEnum,
+});
+
 export const personalitySchema = z.object({
   mbti: MBTIEnum.optional().or(z.literal('')),
   traits: z.array(z.string().min(1)).max(10, '最多 10 个'),
@@ -81,6 +99,7 @@ export const soulFormSchema = z.object({
   relationship: relationshipSchema,
   knowledge: knowledgeSchema,
   body: bodyParamsSchema.optional(),
+  face: faceParamsSchema.optional(),
 });
 
 export type SoulFormValues = z.infer<typeof soulFormSchema>;
@@ -122,5 +141,15 @@ export const defaultSoulValues: SoulFormValues = {
   body: {
     height: 1.0,
     bodyType: 1.0,
+  },
+  face: {
+    faceShape: 'oval',
+    eyeSize: 1.0,
+    eyeShape: 'round',
+    noseSize: 1.0,
+    mouthSize: 1.0,
+    mouthShape: 'wide',
+    eyebrowStyle: 'arch',
+    skinTone: 'medium',
   },
 };

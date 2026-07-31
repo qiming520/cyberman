@@ -46,6 +46,24 @@ export interface BodyParams {
   bodyType: number;     // 0.7 - 1.3（默认 1.0，胖瘦）
 }
 
+// M17-002 高级捏脸参数
+export interface FaceParams {
+  // 脸部
+  faceShape: 'oval' | 'round' | 'square' | 'long';   // 默认 oval
+  // 眼睛
+  eyeSize: number;       // 0.7 - 1.3（默认 1.0）
+  eyeShape: 'round' | 'almond' | 'narrow';           // 默认 round
+  // 鼻子
+  noseSize: number;      // 0.7 - 1.3（默认 1.0）
+  // 嘴
+  mouthSize: number;     // 0.7 - 1.3（默认 1.0）
+  mouthShape: 'thin' | 'wide' | 'full';             // 默认 wide
+  // 眉毛
+  eyebrowStyle: 'flat' | 'arch' | 'round' | 'angled';  // 默认 arch
+  // 肤色（覆盖 identity.skinColor 默认）
+  skinTone: 'light' | 'medium' | 'dark' | 'tan';  // 默认 medium
+}
+
 export interface PersonalityConfig {
   mbti?: MBTI;
   traits: string[];
@@ -88,6 +106,7 @@ export interface SoulConfig {
   relationship: RelationshipConfig;
   knowledge: KnowledgeConfig;
   body?: BodyParams;  // 捏脸参数（M5-003）
+  face?: FaceParams;  // 高级捏脸参数（M17-002）
   createdAt: number;
   updatedAt: number;
 }

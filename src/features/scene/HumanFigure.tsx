@@ -15,7 +15,7 @@
 import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { type Group, MathUtils } from 'three';
-import { type SoulConfig } from '@/stores/souls';
+import { type SoulConfig, type FaceParams } from '@/stores/souls';
 import { type CharacterState } from '@/stores/characterState';
 import { type Emotion } from '@/stores/emotion';
 
@@ -28,20 +28,48 @@ export interface HumanFigureProps {
   hairColor?: string;
   state?: CharacterState;
   emotion?: Emotion;  // M7-003 接入
+  face?: FaceParams;  // M17-002 高级捏脸
   onClick?: () => void;
+}
+
+const SKIN_TONE_COLOR: Record<NonNullable<FaceParams['skinTone']>, string> = {
+  light: '#fef3c7',
+  medium: '#fde68a',
+  tan: '#d4a373',
+  dark: '#a0714f',
+};
+
+/** M17-002 眉毛风格 → Z 轴旋转映射 */
+function eyebrowRotation(style: NonNullable<FaceParams['eyebrowStyle']>, side: 1 | -1): number {
+  const map = { flat: 0, arch: 0.2, round: 0.3, angled: 0.5 } as const;
+  return side * map[style];
+}
+
+/** M17-002 脸型 → 头部 X/Y 缩放（oval=1, round=Y 缩, square=Y 高, long=Y 长） */
+function headScaleFromFaceShape(shape: NonNullable<FaceParams['faceShape']>): { sx: number; sy: number } {
+  switch (shape) {
+    case 'round':  return { sx: 1.1, sy: 0.95 };
+    case 'square': return { sx: 1.05, sy: 1.05 };
+    case 'long':   return { sx: 0.95, sy: 1.1 };
+    case 'oval':
+    default:       return { sx: 1.0, sy: 1.0 };
+  }
 }
 
 export function HumanFigure({
   bodyColor,
-  skinColor = '#fde68a',
+  skinColor,
   height = 1.0,
   bodyType = 1.0,
   hairStyle = 'short',
   hairColor = '#1e293b',
   state = 'standing',
   emotion = 'neutral',
+  face,
   onClick,
 }: HumanFigureProps) {
+  const finalSkin = SKIN_TONE_COLOR[face?.skinTone ?? 'medium'];
+  const effectiveSkin = skinColor ?? finalSkin;
   const groupRef = useRef<Group>(null);
   const heightScale = 1.0 * height;
   const widthScale = 1.0 * bodyType;
@@ -97,13 +125,19 @@ export function HumanFigure({
       {/* 脖子（连接头与身体） */}
       <mesh position={[0, 1.15, 0]}>
         <cylinderGeometry args={[0.08, 0.1, 0.12, 16]} />
-        <meshStandardMaterial color={skinColor} />
+        <meshStandardMaterial color={effectiveSkin} />
       </mesh>
 
-      {/* 头 */}
-      <mesh position={[0, 1.45, 0]}>
+      {/* 头 — M17-002 faceShape 决定 X/Y 缩放 */}
+      <mesh
+        position={[0, 1.45, 0]}
+        scale={(() => {
+          const s = headScaleFromFaceShape(face?.faceShape ?? 'oval');
+          return [s.sx, s.sy, s.sx];
+        })()}
+      >
         <sphereGeometry args={[0.22, 32, 32]} />
-        <meshStandardMaterial color={skinColor} />
+        <meshStandardMaterial color={effectiveSkin} />
       </mesh>
 
       {/* 头发（短 = 头盖 / 长 = 圆球 + 后延伸） */}
@@ -154,54 +188,60 @@ export function HumanFigure({
         </>
       )}
 
-      {/* M12-001 眉毛 */}
-      <mesh position={[-0.08, 1.55, 0.18]} rotation={[0, 0, -0.2]}>
+      {/* M12-001 眉毛 — M17-002 eyebrowStyle 调整旋转 */}
+      <mesh
+        position={[-0.08, 1.55, 0.18]}
+        rotation={[0, 0, eyebrowRotation(face?.eyebrowStyle ?? 'arch', -1)]}
+      >
         <boxGeometry args={[0.06, 0.012, 0.012]} />
         <meshStandardMaterial color="#1e293b" />
       </mesh>
-      <mesh position={[0.08, 1.55, 0.18]} rotation={[0, 0, 0.2]}>
+      <mesh
+        position={[0.08, 1.55, 0.18]}
+        rotation={[0, 0, eyebrowRotation(face?.eyebrowStyle ?? 'arch', 1)]}
+      >
         <boxGeometry args={[0.06, 0.012, 0.012]} />
         <meshStandardMaterial color="#1e293b" />
       </mesh>
 
-      {/* M12-001 鼻梁（小小三角鼻尖） */}
+      {/* M12-001 鼻梁（小小三角鼻尖）— M17-002 noseSize 缩放 */}
       <mesh position={[0, 1.42, 0.21]} rotation={[Math.PI / 2, 0, Math.PI / 4]}>
-        <coneGeometry args={[0.025, 0.04, 4]} />
-        <meshStandardMaterial color={skinColor} />
+        <coneGeometry args={[0.025 * (face?.noseSize ?? 1.0), 0.04 * (face?.noseSize ?? 1.0), 4]} />
+        <meshStandardMaterial color={effectiveSkin} />
       </mesh>
 
       {/* M12-001 耳朵 */}
       <mesh position={[-0.22, 1.45, 0]} rotation={[0, 0, -0.2]}>
         <sphereGeometry args={[0.04, 12, 12]} />
-        <meshStandardMaterial color={skinColor} />
+        <meshStandardMaterial color={effectiveSkin} />
       </mesh>
       <mesh position={[0.22, 1.45, 0]} rotation={[0, 0, 0.2]}>
         <sphereGeometry args={[0.04, 12, 12]} />
-        <meshStandardMaterial color={skinColor} />
+        <meshStandardMaterial color={effectiveSkin} />
       </mesh>
 
-      {/* 眼（黑球） */}
+      {/* 眼（黑球） — M17-002 eyeSize 缩放 */}
       <mesh position={[-0.08, 1.48, 0.18]}>
-        <sphereGeometry args={[0.025, 16, 16]} />
+        <sphereGeometry args={[0.025 * (face?.eyeSize ?? 1.0), 16, 16]} />
         <meshStandardMaterial color="#0f172a" />
       </mesh>
       <mesh position={[0.08, 1.48, 0.18]}>
-        <sphereGeometry args={[0.025, 16, 16]} />
+        <sphereGeometry args={[0.025 * (face?.eyeSize ?? 1.0), 16, 16]} />
         <meshStandardMaterial color="#0f172a" />
       </mesh>
       {/* 眼睑（白色半圆覆盖上半眼，营造眨眼感） */}
       <mesh position={[-0.08, 1.5, 0.185]}>
-        <sphereGeometry args={[0.027, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2.5]} />
-        <meshStandardMaterial color={skinColor} />
+        <sphereGeometry args={[0.027 * (face?.eyeSize ?? 1.0), 16, 16, 0, Math.PI * 2, 0, Math.PI / 2.5]} />
+        <meshStandardMaterial color={effectiveSkin} />
       </mesh>
       <mesh position={[0.08, 1.5, 0.185]}>
-        <sphereGeometry args={[0.027, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2.5]} />
-        <meshStandardMaterial color={skinColor} />
+        <sphereGeometry args={[0.027 * (face?.eyeSize ?? 1.0), 16, 16, 0, Math.PI * 2, 0, Math.PI / 2.5]} />
+        <meshStandardMaterial color={effectiveSkin} />
       </mesh>
 
-      {/* 嘴（emotion 决定颜色） */}
+      {/* 嘴（emotion 决定颜色） — M17-002 mouthSize 缩放 */}
       <mesh position={[0, 1.39, 0.2]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.03, 0.03, 0.04, 16]} />
+        <cylinderGeometry args={[0.03 * (face?.mouthSize ?? 1.0), 0.03 * (face?.mouthSize ?? 1.0), 0.04, 16]} />
         <meshStandardMaterial color={mouthColor} />
       </mesh>
 
@@ -234,12 +274,12 @@ export function HumanFigure({
         </mesh>
         <mesh position={[-0.06, -0.6, 0]} rotation={[0, 0, 0.15]}>
           <capsuleGeometry args={[0.07, 0.3, 6, 12]} />
-          <meshStandardMaterial color={skinColor} />
+          <meshStandardMaterial color={effectiveSkin} />
         </mesh>
         {/* 手（5 指简化为 1 个椭圆） */}
         <mesh position={[-0.1, -0.82, 0]}>
           <sphereGeometry args={[0.07, 12, 12]} />
-          <meshStandardMaterial color={skinColor} />
+          <meshStandardMaterial color={effectiveSkin} />
         </mesh>
       </group>
 
@@ -255,11 +295,11 @@ export function HumanFigure({
         </mesh>
         <mesh position={[0.06, -0.6, 0]} rotation={[0, 0, -0.15]}>
           <capsuleGeometry args={[0.07, 0.3, 6, 12]} />
-          <meshStandardMaterial color={skinColor} />
+          <meshStandardMaterial color={effectiveSkin} />
         </mesh>
         <mesh position={[0.1, -0.82, 0]}>
           <sphereGeometry args={[0.07, 12, 12]} />
-          <meshStandardMaterial color={skinColor} />
+          <meshStandardMaterial color={effectiveSkin} />
         </mesh>
       </group>
 

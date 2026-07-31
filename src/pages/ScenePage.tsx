@@ -16,14 +16,15 @@ import { useState, useEffect } from 'react';
 import { Scene } from '@/features/scene/Scene';
 import { Modal } from '@/components/ui/Modal';
 import { SoulDetailModal } from '@/components/soul/SoulDetailModal';
+import { OnboardingFlow } from '@/features/soul/OnboardingFlow';
 import { HomePage } from '@/pages/HomePage';
 import { WorkshopPage } from '@/pages/WorkshopPage';
 import { SettingsPage } from '@/pages/SettingsPage';
-import { Users, Hammer, Settings as SettingsIcon, ArrowLeft } from 'lucide-react';
+import { Users, Hammer, Settings as SettingsIcon, ArrowLeft, Sparkles } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSoulsStore } from '@/stores/souls';
 
-type OverlayType = 'characters' | 'workshop' | 'settings' | null;
+type OverlayType = 'characters' | 'workshop' | 'settings' | 'onboarding' | null;
 
 export function ScenePage() {
   const [overlay, setOverlay] = useState<OverlayType>(null);
@@ -60,9 +61,15 @@ export function ScenePage() {
             onClick={() => setOverlay('characters')}
           />
           <NavButton
-            icon={<Hammer size={16} />}
+            icon={<Sparkles size={16} />}
             label="新建角色"
+            onClick={() => setOverlay('onboarding')}
+          />
+          <NavButton
+            icon={<Hammer size={16} />}
+            label="高级编辑"
             onClick={() => setOverlay('workshop')}
+            title="高级模式：所有字段手动编辑"
           />
           <NavButton
             icon={<SettingsIcon size={16} />}
@@ -107,6 +114,17 @@ export function ScenePage() {
         <SettingsPage />
       </Modal>
 
+      {/* 浮层 4：引导式创建灵魂（M16-001） */}
+      <OnboardingFlow
+        open={overlay === 'onboarding'}
+        onClose={close}
+        onComplete={(soulId) => {
+          close();
+          // 创建后跳到聊天
+          navigate(`/chat?soulId=${soulId}`);
+        }}
+      />
+
       {/* 浮层 4：角色详情（auto 模式 · 响应 store.activeSoulId）*/}
       <SoulDetailModal />
 
@@ -129,15 +147,18 @@ function NavButton({
   icon,
   label,
   onClick,
+  title,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
+  title?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      title={title}
       className="flex items-center gap-2 px-3 py-2 bg-slate-900/70 backdrop-blur border border-slate-700 text-slate-200 hover:bg-slate-800 hover:text-slate-100 rounded-lg text-sm transition-colors"
     >
       {icon}
