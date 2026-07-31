@@ -1,7 +1,7 @@
 {
   "name": "cyberman",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.1.0",
   "type": "module",
   "description": "赛博机器人（Cyberman）- 可定制 AI 陪伴应用",
   "scripts": {

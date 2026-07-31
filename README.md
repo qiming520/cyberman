@@ -247,13 +247,26 @@ cyberman/
 
 ## 🌐 部署
 
-### Vercel（推荐）
+### Vercel（推荐 · 一键部署）
 
 ```bash
 npm i -g vercel
 vercel
-# 自动检测 Vite 项目，一键部署
+# 自动检测 Vite 项目，使用根目录 vercel.json 配置
+# · rewrites：所有路径 → index.html（SPA 路由）
+# · 安全 headers：X-Content-Type-Options、X-Frame-Options、Referrer-Policy
+# · 静态资源 1 年 immutable cache
 ```
+
+### GitHub Actions（CI/CD · 已配）
+
+`.github/workflows/ci.yml` 自动跑：
+- TypeScript typecheck
+- Production build
+- Dev mode E2E（13 步）
+- Production E2E（30 步，含移动端 + 首启动引导）
+
+PR 必须全 pass 才能 merge。
 
 ### Cloudflare Pages
 
@@ -270,6 +283,22 @@ npm run build
 ```
 
 无后端依赖（BYOK 模式），纯前端应用。
+
+---
+
+## 📚 项目文档
+
+- [README.md](README.md) - 你正在读的项目介绍
+- [CHANGELOG.md](CHANGELOG.md) - 版本变更日志（v0.0.1 → v0.1.0）
+- [CONTRIBUTING.md](CONTRIBUTING.md) - 贡献指南（含 dev-process 工作流）
+- [SECURITY.md](SECURITY.md) - 安全策略 + 数据隐私声明
+- [LICENSE](LICENSE) - MIT 协议
+- [docs/project-design-report.md](docs/project-design-report.md) - PRD
+- [docs/tech-design.md](docs/tech-design.md) - 技术设计 + 6 个 ADR
+- [docs/dev-process.md](docs/dev-process.md) - 开发流程规范
+- [docs/dev-plan.md](docs/dev-plan.md) - Sprint 计划（25 个 Sprint）
+- [docs/dev-log.md](docs/dev-log.md) - 开发记录（25 个 Sprint 收尾）
+- [docs/perf-budget.md](docs/perf-budget.md) - 性能预算实测
 
 ---
 

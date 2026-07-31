@@ -510,15 +510,91 @@ Sprint #1 → Sprint #2 衔接时，已由 zustand `persist` 中间件保证 Loc
 
 | ID | 任务 | 状态 | 工时 | 验证标准 |
 |---|---|---|---|---|
-| M20-001 | 完整 E2E（dev + prod） | ⚪ | 1h | 27 + 新增 = ≥ 30 步全 pass |
-| M20-002 | 按用户原话 10 项核查 | ⚪ | 1h | 100% 满足 |
-| M20-003 | README 更新 | ⚪ | 0.5h | 包含新增功能说明 |
+| M20-001 | 完整 E2E（dev + prod） | ✅ | 1h | 30 步全 pass（13 dev + 17 prod，含 3 步首启动） |
+| M20-002 | 按用户原话 10 项核查 | ✅ | 1h | 12/12 满足（含 Sprint #16-19 补缺 7 项） |
+| M20-003 | README 更新 | ✅ | 0.5h | 包含 5 截图 + 完整功能列表 |
 
-**Sprint 进度**：0/3 完成（0%）
+**Sprint 进度**：3/3 完成（100%）
 
 ---
 
-## 🎯 重新对齐：用户原话 + 完成度
+按用户原话「我需要一个能用的能上线的系统」 → Sprint #21-25 补足生产级要素：
+
+### Sprint #21：真实 GLB 模型（替代程序化积木人）
+- **周期**：2026-07-31 起
+- **目标**：用真实 GLTF/GLB 模型替代 procedural 几何；提供 .gltf 嵌入资产
+
+| ID | 任务 | 状态 | 工时 | 验证标准 |
+|---|---|---|---|---|
+| M21-001 | **🆕 内嵌 GLTF 模型**（手写 .gltf JSON 字符串 + base64 buffer） | ⚪ | 2h | 角色用 useGLTF 加载；显示 .gltf 资产而非 procedural |
+| M21-002 | **🆕 HumanFigure 切换 GLB 加载**（useGLTF 替换几何体） | ⚪ | 2h | 角色用真实 GLB 几何渲染 |
+| M21-003 | **🆕 捏脸 UI 编辑 section**（8 参数表单控件） | ⚪ | 1h | SoulEditor 有捏脸 section；调节后 3D 实时反映 |
+| M21-004 | **🆕 性能深度优化**（ScenePage lazy + TTS 单独 chunk） | ⚪ | 2h | main < 200KB gzip；按需加载 |
+
+**Sprint 进度**：0/4
+
+---
+
+### Sprint #22：CI/CD + 部署配置
+- **周期**：Sprint #21 完成后
+- **目标**：一键部署到 Vercel + CI 自动跑 E2E
+
+| ID | 任务 | 状态 | 工时 | 验证标准 |
+|---|---|---|---|---|
+| M22-001 | **🆕 GitHub Actions CI**（typecheck + build + E2E） | ⚪ | 1h | PR 自动跑测试；fail 阻止 merge |
+| M22-002 | **🆕 Vercel 配置**（vercel.json + 部署 dry-run） | ⚪ | 1h | `vercel` 命令 dry-run 成功；配置文件完整 |
+| M22-003 | **🆕 README 部署章节**（含 vercel login + vercel deploy 命令） | ⚪ | 0.5h | 文档完整 |
+
+**Sprint 进度**：0/3
+
+---
+
+### Sprint #23：错误监控 + SEO + 性能
+- **周期**：Sprint #22 完成后
+- **目标**：生产稳定 + 搜索引擎友好
+
+| ID | 任务 | 状态 | 工时 | 验证标准 |
+|---|---|---|---|---|
+| M23-001 | **🆕 错误监控**（window.onerror + 自建错误上报 store） | ⚪ | 1h | 错误自动收集 + LocalStorage 持久化 + UI 错误页 |
+| M23-002 | **🆕 SEO meta**（og / twitter card / description） | ⚪ | 0.5h | index.html 完整 meta；分享卡片正常 |
+| M23-003 | **🆕 favicon + PWA manifest** | ⚪ | 1h | /favicon.ico + /site.webmanifest 存在 |
+| M23-004 | **🆕 性能预算更新**（perf-budget.md 实测） | ⚪ | 0.5h | main < 200KB；lighthouse 目标 |
+
+**Sprint 进度**：0/4
+
+---
+
+### Sprint #24：完整文档 + 开源准备
+- **周期**：Sprint #23 完成后
+- **目标**：项目可被他人使用 / 贡献
+
+| ID | 任务 | 状态 | 工时 | 验证标准 |
+|---|---|---|---|---|
+| M24-001 | **🆕 CHANGELOG.md**（按 Sprint 整理） | ⚪ | 0.5h | v0.0.3 完整变更日志 |
+| M24-002 | **🆕 CONTRIBUTING.md**（开发指南 + PR 流程） | ⚪ | 0.5h | 包含 dev process + E2E 流程 |
+| M24-003 | **🆕 LICENSE**（MIT） | ⚪ | 0.1h | 标准 MIT 协议 |
+| M24-004 | **🆕 SECURITY.md**（BYOK + 隐私说明） | ⚪ | 0.5h | API key 本地存储 + 无数据收集声明 |
+| M24-005 | **🆕 API 文档**（src/ 模块自动生成） | ⚪ | 1h | TypeDoc 自动生成 |
+
+**Sprint 进度**：0/5
+
+---
+
+### Sprint #25：最终上线验证
+- **周期**：Sprint #24 完成后
+- **目标**：所有验证通过 + 可上线
+
+| ID | 任务 | 状态 | 工时 | 验证标准 |
+|---|---|---|---|---|
+| M25-001 | **🆕 完整 E2E**（30+ 步全 pass） | ⚪ | 1h | dev + prod + CI 全 pass |
+| M25-002 | **🆕 性能 + 截图复核** | ⚪ | 0.5h | 所有截图正常 + bundle 优化 |
+| M25-003 | **🆕 上线 dry-run**（vercel + 文档） | ⚪ | 0.5h | 完整 dry-run 成功 |
+
+**Sprint 进度**：0/3
+
+---
+
+## 🎯 最终目标：v0.1.0 上线版本
 
 | 用户原话 | 当前状态 | 需补 Sprint |
 |---|---|---|
